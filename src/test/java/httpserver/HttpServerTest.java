@@ -4,9 +4,11 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Paths;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -17,19 +19,53 @@ import org.junit.runners.model.Statement;
 public class HttpServerTest {
 
     @Test
-    public void GETリクエストを処理する() throws Exception {
-        URL url = new URL("http://localhost:8080/hello");
-        try (InputStream in = url.openStream()) {
-            byte[] b = new byte[8192];
-            int i;
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            while (-1 != (i = in.read(b, 0, b.length))) {
-                out.write(b, 0, i);
-            }
-            out.flush();
-            out.close();
-            String response = out.toString();
+    public void GETリクエストでtxtファイルを貰う() throws Exception {
+        URL url = new URL("http://localhost:8080/hello.txt");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+
+        int statusCode = con.getResponseCode();
+        assertThat(statusCode, is(200));
+
+        assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
+
+        try (InputStream in = con.getInputStream()) {
+            String response = readAll(in);
             assertThat(response, is("Hello, world!"));
+        }
+    }
+
+    @Test
+    public void GETリクエストでjsonファイルを貰う() throws Exception {
+        URL url = new URL("http://localhost:8080/hello.json");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+
+        int statusCode = con.getResponseCode();
+        assertThat(statusCode, is(200));
+
+        assertThat(con.getContentType(), is("application/json; charset=UTF-8"));
+
+        try (InputStream in = con.getInputStream()) {
+            String response = readAll(in);
+            assertThat(response, is("{ \"message\" : \"Hello, world!\" }"));
+        }
+    }
+
+    @Test
+    public void ファイルが見つからなかったら404NotFound() throws Exception {
+        URL url = new URL("http://localhost:8080/hello.unknown");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+
+        int statusCode = con.getResponseCode();
+        assertThat(statusCode, is(404));
+
+        assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
+
+        try (InputStream in = con.getErrorStream()) {
+            String response = readAll(in);
+            assertThat(response, is("404 Not Found"));
         }
     }
 
@@ -41,6 +77,13 @@ public class HttpServerTest {
 
         int statusCode = con.getResponseCode();
         assertThat(statusCode, is(501));
+
+        assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
+
+        try (InputStream in = con.getErrorStream()) {
+            String response = readAll(in);
+            assertThat(response, is("501 Not Implemented"));
+        }
     }
 
     /**
@@ -55,7 +98,8 @@ public class HttpServerTest {
 
                 @Override
                 public void evaluate() throws Throwable {
-                    try (HttpServer server = new HttpServer(8080)) {
+                    try (HttpServer server =
+                        new HttpServer(Paths.get("src", "main", "webapp"), 8080)) {
                         server.start();
                         base.evaluate();
                     }
@@ -63,4 +107,17 @@ public class HttpServerTest {
             };
         }
     };
+
+    private static String readAll(InputStream in) throws IOException {
+        byte[] b = new byte[8192];
+        int i;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        while (-1 != (i = in.read(b, 0, b.length))) {
+            out.write(b, 0, i);
+        }
+        out.flush();
+        out.close();
+        return out.toString();
+    }
+
 }

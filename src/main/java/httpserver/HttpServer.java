@@ -3,12 +3,17 @@ package httpserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,10 +26,19 @@ public class HttpServer implements AutoCloseable {
 
     private final ExecutorService executor;
 
-    public HttpServer(int port) throws IOException {
+    private final Path webappDir;
+
+    private final Map<String, String> contentTypes;
+
+    public HttpServer(Path webappDir, int port) throws IOException {
+        this.webappDir = webappDir;
         this.port = port;
         this.server = new ServerSocket();
         this.executor = Executors.newSingleThreadExecutor();
+        this.contentTypes = new HashMap<>();
+
+        this.contentTypes.put(".txt", "text/plain; charset=UTF-8");
+        this.contentTypes.put(".json", "application/json; charset=UTF-8");
     }
 
     public void start() {
@@ -78,12 +92,20 @@ public class HttpServer implements AutoCloseable {
             }
             data.write(i);
         }
+        String[] requestLine = data.toString().split(" ");
 
-        if (data.toString().startsWith("GET ") == false) {
+        if (requestLine[0].equals("GET") == false) {
             //今回はGETリクエスト以外は扱わない
+            System.out.println(requestLine[0] + "は扱えないメソッド");
+            String content = "501 Not Implemented";
             Writer out = new OutputStreamWriter(client.getOutputStream());
             out.write("HTTP/1.0 501 Not Implemented\r\n");
+            out.write("Content-Length: "
+                + content.getBytes("UTF-8").length
+                + "\r\n");
+            out.write("Content-Type: text/plain; charset=UTF-8\r\n");
             out.write("\r\n");
+            out.write(content);
             out.flush();
             return;
         }
@@ -104,21 +126,68 @@ public class HttpServer implements AutoCloseable {
             data.write(i);
         }
 
+        /*
+         * リクエストを解析（というほどのことはしていないが）
+         */
+        //Request-URI は abs_path であることを前提にしておく
+        Path requestPath = webappDir.resolve(requestLine[1].substring(1));
+
+        if (Files.notExists(requestPath)) {
+            //ファイルがなければ404
+            System.out.println(requestPath + "が見つからない");
+            String content = "404 Not Found";
+            Writer out = new OutputStreamWriter(client.getOutputStream());
+            out.write("HTTP/1.0 404 Not Found\r\n");
+            out.write("Content-Length: "
+                + content.getBytes("UTF-8").length
+                + "\r\n");
+            out.write("Content-Type: text/plain; charset=UTF-8\r\n");
+            out.write("\r\n");
+            out.write(content);
+            out.flush();
+            return;
+        }
+
+        data = new ByteArrayOutputStream();
+        Files.copy(requestPath, data);
+        byte[] fileContent = data.toByteArray();
+
+        String contentType = null;
+        String fileName = requestPath.getFileName().toString();
+        int index = fileName.lastIndexOf('.');
+        if (index > -1) {
+            String extension = fileName.substring(index);
+            contentType = contentTypes.get(extension);
+        }
+        //Content-Typeが不明なファイルはoctet-streamにしちゃう
+        if (contentType == null) {
+            contentType = "application/octet-stream";
+        }
+
         /* 
          * レスポンスを書く 
          */
-        Writer out = new OutputStreamWriter(client.getOutputStream());
+        OutputStream responseStream = client.getOutputStream();
+        Writer out = new OutputStreamWriter(responseStream);
 
         //ステータスライン 
         out.write("HTTP/1.0 200 OK\r\n");
 
         //レスポンスヘッダ 
-        out.write("Content-Type: text/plain; charset=UTF-8\r\n");
+
+        //general-header
+
+        //response-header
+
+        //entity-header
+        out.write("Content-Length: " + fileContent.length + "\r\n");
+        out.write("Content-Type: " + contentType + "\r\n");
 
         out.write("\r\n");
+        out.flush();
 
         //エンティティボディ 
-        out.write("Hello, world!");
-        out.flush();
+        responseStream.write(fileContent);
+        responseStream.flush();
     }
 }

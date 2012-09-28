@@ -183,9 +183,7 @@ public class HttpServer implements AutoCloseable {
                 .getLastModifiedTime(requestPath)
                 .toMillis()));
 
-        data = new ByteArrayOutputStream();
-        Files.copy(requestPath, data);
-        byte[] fileContent = data.toByteArray();
+        byte[] fileContent = Files.readAllBytes(requestPath);
 
         String contentType = null;
         String fileName = requestPath.getFileName().toString();

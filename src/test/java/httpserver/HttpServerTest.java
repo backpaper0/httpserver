@@ -27,6 +27,7 @@ public class HttpServerTest {
         int statusCode = con.getResponseCode();
         assertThat(statusCode, is(200));
 
+        System.out.println(con.getHeaderFields());
         assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
 
         try (InputStream in = con.getInputStream()) {
@@ -44,6 +45,7 @@ public class HttpServerTest {
         int statusCode = con.getResponseCode();
         assertThat(statusCode, is(200));
 
+        System.out.println(con.getHeaderFields());
         assertThat(con.getContentType(), is("application/json; charset=UTF-8"));
 
         try (InputStream in = con.getInputStream()) {
@@ -61,6 +63,7 @@ public class HttpServerTest {
         int statusCode = con.getResponseCode();
         assertThat(statusCode, is(404));
 
+        System.out.println(con.getHeaderFields());
         assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
 
         try (InputStream in = con.getErrorStream()) {
@@ -78,6 +81,7 @@ public class HttpServerTest {
         int statusCode = con.getResponseCode();
         assertThat(statusCode, is(501));
 
+        System.out.println(con.getHeaderFields());
         assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
 
         try (InputStream in = con.getErrorStream()) {

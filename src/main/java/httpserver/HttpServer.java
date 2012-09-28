@@ -12,8 +12,12 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,6 +79,10 @@ public class HttpServer implements AutoCloseable {
     }
 
     private void handleClientSocket(Socket client) throws IOException {
+        //ちょくちょく使うのでインスタンス化しとく
+        DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+        df.setTimeZone(TimeZone.getTimeZone("GMT"));
+
         /* 
          * リクエストを読む 
          */
@@ -100,6 +108,15 @@ public class HttpServer implements AutoCloseable {
             String content = "501 Not Implemented";
             Writer out = new OutputStreamWriter(client.getOutputStream());
             out.write("HTTP/1.0 501 Not Implemented\r\n");
+
+            //general-header
+            out.write("Connection: close\r\n");
+            out.write("Date: " + df.format(new Date()) + "\r\n");
+
+            //response-header
+            out.write("Server: SimpleHttpServer/0.1\r\n");
+
+            //entity-header
             out.write("Content-Length: "
                 + content.getBytes("UTF-8").length
                 + "\r\n");
@@ -138,15 +155,33 @@ public class HttpServer implements AutoCloseable {
             String content = "404 Not Found";
             Writer out = new OutputStreamWriter(client.getOutputStream());
             out.write("HTTP/1.0 404 Not Found\r\n");
+
+            //general-header
+            out.write("Connection: close\r\n");
+            out.write("Date: " + df.format(new Date()) + "\r\n");
+
+            //response-header
+            out.write("Server: SimpleHttpServer/0.1\r\n");
+
+            //entity-header
             out.write("Content-Length: "
                 + content.getBytes("UTF-8").length
                 + "\r\n");
             out.write("Content-Type: text/plain; charset=UTF-8\r\n");
             out.write("\r\n");
+
             out.write(content);
             out.flush();
             return;
         }
+
+        /*
+         * レスポンスの準備
+         */
+        String lastModified =
+            df.format(new Date(Files
+                .getLastModifiedTime(requestPath)
+                .toMillis()));
 
         data = new ByteArrayOutputStream();
         Files.copy(requestPath, data);
@@ -176,12 +211,16 @@ public class HttpServer implements AutoCloseable {
         //レスポンスヘッダ 
 
         //general-header
+        out.write("Connection: close\r\n");
+        out.write("Date: " + df.format(new Date()) + "\r\n");
 
         //response-header
+        out.write("Server: SimpleHttpServer/0.1\r\n");
 
         //entity-header
         out.write("Content-Length: " + fileContent.length + "\r\n");
         out.write("Content-Type: " + contentType + "\r\n");
+        out.write("Last-Modified: " + lastModified + "\r\n");
 
         out.write("\r\n");
         out.flush();

@@ -1,8 +1,6 @@
 package httpserver;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
@@ -23,10 +21,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class HttpServer implements AutoCloseable {
-
-    private static final char CR = '\r';
-
-    private static final char LF = '\n';
 
     private final int port;
 
@@ -90,26 +84,11 @@ public class HttpServer implements AutoCloseable {
         /* 
          * リクエストを読む 
          */
-        ByteArrayOutputStream data = new ByteArrayOutputStream();
-        InputStream in = client.getInputStream();
-        int i;
+        HttpRequestReader reader =
+            new HttpRequestReader(client.getInputStream());
 
         //リクエストラインを読んで標準出力に書き出す 
-        while (-1 != (i = in.read())) {
-            /*
-             * CRを無視してLFで改行の判断をする寛容っぷりを発揮
-             * http://www.studyinghttp.net/cgi-bin/rfc.cgi?2616#Sec19.3
-             */
-            if (i == CR) {
-                i = in.read();
-            }
-            if (i == LF) {
-                System.out.println("[Request line] " + data);
-                break;
-            }
-            data.write(i);
-        }
-        String[] requestLine = data.toString().split(" ");
+        String[] requestLine = reader.readRequestLine();
 
         if (requestLine[0].equals("GET") == false
             && requestLine[0].equals("POST") == false) {
@@ -138,73 +117,14 @@ public class HttpServer implements AutoCloseable {
         }
 
         //リクエストヘッダを読む
-        Map<String, String> requestHeader = new HashMap<>();
-        while (-1 != (i = in.read())) {
-            if (i == CR) {
-                i = in.read();
-            }
-            if (i == LF) {
-                break;
-            }
-
-            data = new ByteArrayOutputStream();
-            data.write(i);
-            while (-1 != (i = in.read())) {
-                if (i == ':') {
-                    break;
-                }
-                data.write(i);
-            }
-            //field-nameは大文字・小文字を区別しない
-            //ここでは全て小文字にしておく
-            String name = data.toString().toLowerCase();
-
-            //fieldに先行するLWSを読み飛ばす
-            i = in.read();
-            if (i == CR) {
-                i = in.read();
-            }
-            if (i == LF) {
-                i = in.read();
-            }
-            if ((i != ' ' && i != '\t') == false) {
-                while (-1 != (i = in.read())) {
-                    if (i != ' ' && i != '\t') {
-                        break;
-                    }
-                }
-            }
-
-            data = new ByteArrayOutputStream();
-            data.write(i);
-            while (-1 != (i = in.read())) {
-                if (i == CR) {
-                    i = in.read();
-                }
-                if (i == LF) {
-                    //field-valueはLWSを行頭につけると改行可能だけど
-                    //今回はそこまで解析しない
-                    String field = data.toString();
-                    requestHeader.put(name, field);
-                    break;
-                }
-                data.write(i);
-            }
-        }
+        Map<String, String> requestHeader = reader.readRequestHeader();
         System.out.println("[Request header] " + requestHeader);
 
         byte[] requestEntity = null;
         if (requestHeader.containsKey("content-length")) {
             int contentLength =
                 Integer.parseInt(requestHeader.get("content-length"));
-            data = new ByteArrayOutputStream();
-            while (-1 != (i = in.read())) {
-                data.write(i);
-                if (data.size() == contentLength) {
-                    requestEntity = data.toByteArray();
-                    break;
-                }
-            }
+            requestEntity = reader.readEntityBody(contentLength);
         }
 
         if (requestLine[0].equals("POST")) {

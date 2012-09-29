@@ -41,8 +41,8 @@ public class HttpServer implements AutoCloseable {
         this.executor = Executors.newSingleThreadExecutor();
         this.contentTypes = new HashMap<>();
 
-        this.contentTypes.put(".txt", "text/plain; charset=UTF-8");
-        this.contentTypes.put(".json", "application/json; charset=UTF-8");
+        this.contentTypes.put(".txt", "text/plain");
+        this.contentTypes.put(".json", "application/json");
     }
 
     public void start() {
@@ -228,7 +228,7 @@ public class HttpServer implements AutoCloseable {
 
         //entity-header
         out.write("Content-Length: " + fileContent.length + "\r\n");
-        out.write("Content-Type: " + contentType + "\r\n");
+        out.write("Content-Type: " + contentType + "; charset=UTF-8\r\n");
         out.write("Last-Modified: " + lastModified + "\r\n");
 
         out.write("\r\n");

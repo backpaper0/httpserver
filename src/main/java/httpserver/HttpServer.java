@@ -24,6 +24,10 @@ import java.util.concurrent.Executors;
 
 public class HttpServer implements AutoCloseable {
 
+    private static final char CR = '\r';
+
+    private static final char LF = '\n';
+
     private final int port;
 
     private final ServerSocket server;
@@ -96,10 +100,10 @@ public class HttpServer implements AutoCloseable {
              * CRを無視してLFで改行の判断をする寛容っぷりを発揮
              * http://www.studyinghttp.net/cgi-bin/rfc.cgi?2616#Sec19.3
              */
-            if (i == '\r') {
+            if (i == CR) {
                 i = in.read();
             }
-            if (i == '\n') { //LF
+            if (i == LF) {
                 System.out.println("[Request line] " + data);
                 break;
             }
@@ -136,10 +140,10 @@ public class HttpServer implements AutoCloseable {
         //リクエストヘッダを読む
         Map<String, String> requestHeader = new HashMap<>();
         while (-1 != (i = in.read())) {
-            if (i == '\r') { //CR
+            if (i == CR) {
                 i = in.read();
             }
-            if (i == '\n') { //LF
+            if (i == LF) {
                 break;
             }
 
@@ -157,10 +161,10 @@ public class HttpServer implements AutoCloseable {
 
             //fieldに先行するLWSを読み飛ばす
             i = in.read();
-            if (i == '\r') { //CR
+            if (i == CR) {
                 i = in.read();
             }
-            if (i == '\n') { //LF
+            if (i == LF) {
                 i = in.read();
             }
             if ((i != ' ' && i != '\t') == false) {
@@ -174,10 +178,10 @@ public class HttpServer implements AutoCloseable {
             data = new ByteArrayOutputStream();
             data.write(i);
             while (-1 != (i = in.read())) {
-                if (i == '\r') { //CR
+                if (i == CR) {
                     i = in.read();
                 }
-                if (i == '\n') { //LF
+                if (i == LF) {
                     //field-valueはLWSを行頭につけると改行可能だけど
                     //今回はそこまで解析しない
                     String field = data.toString();

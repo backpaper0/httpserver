@@ -3,6 +3,7 @@ package httpserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PushbackInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,10 +13,10 @@ public class HttpRequestReader {
 
     private static final char LF = '\n';
 
-    private final InputStream in;
+    private final PushbackInputStream in;
 
     public HttpRequestReader(InputStream in) {
-        this.in = in;
+        this.in = new PushbackInputStream(in);
     }
 
     public String[] readRequestLine() throws IOException {
@@ -49,52 +50,67 @@ public class HttpRequestReader {
             if (i == LF) {
                 break;
             }
+            in.unread(i);
 
-            ByteArrayOutputStream data = new ByteArrayOutputStream();
+            String[] requestHeaderField = readRequestHeaderField();
+            requestHeader.put(requestHeaderField[0], requestHeaderField[1]);
+        }
+        return requestHeader;
+    }
+
+    protected String[] readRequestHeaderField() throws IOException {
+        ByteArrayOutputStream data = new ByteArrayOutputStream();
+        int i;
+        while (-1 != (i = in.read())) {
+            if (i == ':') {
+                break;
+            }
             data.write(i);
+        }
+        //field-nameは大文字・小文字を区別しない
+        //ここでは全て小文字にしておく
+        String name = data.toString().toLowerCase();
+
+        //fieldに先行するLWSを読み飛ばす
+        i = in.read();
+        if (i == CR) {
+            i = in.read();
+        }
+        if (i == LF) {
+            i = in.read();
+        }
+        if ((i != ' ' && i != '\t') == false) {
             while (-1 != (i = in.read())) {
-                if (i == ':') {
+                if (i != ' ' && i != '\t') {
                     break;
                 }
-                data.write(i);
             }
-            //field-nameは大文字・小文字を区別しない
-            //ここでは全て小文字にしておく
-            String name = data.toString().toLowerCase();
+        }
 
-            //fieldに先行するLWSを読み飛ばす
-            i = in.read();
+        data = new ByteArrayOutputStream();
+        data.write(i);
+        while (-1 != (i = in.read())) {
             if (i == CR) {
                 i = in.read();
             }
             if (i == LF) {
                 i = in.read();
-            }
-            if ((i != ' ' && i != '\t') == false) {
+                if (i != ' ' && i != '\t') {
+                    in.unread(i);
+
+                    String value = data.toString();
+                    return new String[] { name, value };
+                }
+                //field-valueはLWSを行頭につけると改行可能
                 while (-1 != (i = in.read())) {
                     if (i != ' ' && i != '\t') {
                         break;
                     }
                 }
             }
-
-            data = new ByteArrayOutputStream();
             data.write(i);
-            while (-1 != (i = in.read())) {
-                if (i == CR) {
-                    i = in.read();
-                }
-                if (i == LF) {
-                    //field-valueはLWSを行頭につけると改行可能だけど
-                    //今回はそこまで解析しない
-                    String value = data.toString();
-                    requestHeader.put(name, value);
-                    break;
-                }
-                data.write(i);
-            }
         }
-        return requestHeader;
+        throw new IllegalStateException();
     }
 
     public byte[] readEntityBody(int contentLength) throws IOException {

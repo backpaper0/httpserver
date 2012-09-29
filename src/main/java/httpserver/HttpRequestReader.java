@@ -22,7 +22,7 @@ public class HttpRequestReader {
     }
 
     public String[] readRequestLine() throws IOException {
-        ByteArrayOutputStream data = new ByteArrayOutputStream();
+        ByteArrayOutputStream requestLine = new ByteArrayOutputStream();
         int i;
         while (-1 != (i = in.read())) {
             /*
@@ -33,13 +33,11 @@ public class HttpRequestReader {
                 i = in.read();
             }
             if (i == LF) {
-                System.out.println("[Request line] " + data);
-                break;
+                return requestLine.toString().split(" ");
             }
-            data.write(i);
+            requestLine.write(i);
         }
-        String[] requestLine = data.toString().split(" ");
-        return requestLine;
+        throw new IllegalArgumentException();
     }
 
     public Map<String, String> readRequestHeader() throws IOException {
@@ -61,17 +59,14 @@ public class HttpRequestReader {
     }
 
     protected String[] readRequestHeaderField() throws IOException {
-        ByteArrayOutputStream data = new ByteArrayOutputStream();
+        ByteArrayOutputStream name = new ByteArrayOutputStream();
         int i;
         while (-1 != (i = in.read())) {
             if (i == ':') {
                 break;
             }
-            data.write(i);
+            name.write(i);
         }
-        //field-nameは大文字・小文字を区別しない
-        //ここでは全て小文字にしておく
-        String name = data.toString().toLowerCase();
 
         //fieldに先行するLWSを読み飛ばす
         i = in.read();
@@ -89,8 +84,8 @@ public class HttpRequestReader {
             }
         }
 
-        data = new ByteArrayOutputStream();
-        data.write(i);
+        ByteArrayOutputStream value = new ByteArrayOutputStream();
+        value.write(i);
         while (-1 != (i = in.read())) {
             if (i == CR) {
                 i = in.read();
@@ -100,8 +95,11 @@ public class HttpRequestReader {
                 if (i != ' ' && i != HT) {
                     in.unread(i);
 
-                    String value = data.toString();
-                    return new String[] { name, value };
+                    //field-nameは大文字・小文字を区別しない
+                    //ここでは全て小文字にしておく
+                    return new String[] {
+                        name.toString().toLowerCase(),
+                        value.toString() };
                 }
                 //field-valueはLWSを行頭につけると改行可能
                 while (-1 != (i = in.read())) {
@@ -110,18 +108,18 @@ public class HttpRequestReader {
                     }
                 }
             }
-            data.write(i);
+            value.write(i);
         }
         throw new IllegalStateException();
     }
 
     public byte[] readEntityBody(int contentLength) throws IOException {
         int i;
-        ByteArrayOutputStream data = new ByteArrayOutputStream();
+        ByteArrayOutputStream entityBody = new ByteArrayOutputStream();
         while (-1 != (i = in.read())) {
-            data.write(i);
-            if (data.size() == contentLength) {
-                return data.toByteArray();
+            entityBody.write(i);
+            if (entityBody.size() == contentLength) {
+                return entityBody.toByteArray();
             }
         }
         throw new IllegalStateException();

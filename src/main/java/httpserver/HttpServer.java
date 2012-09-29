@@ -93,8 +93,14 @@ public class HttpServer implements AutoCloseable {
         //リクエストラインを読んで標準出力に書き出す 
         //今回はGETリクエストが来ることを前提にしているので変数に保持しない 
         while (-1 != (i = in.read())) {
-            if (i == '\r') { //CR 
-                in.read(); //LF 
+            /*
+             * CRを無視してLFで改行の判断をする寛容っぷりを発揮
+             * http://www.studyinghttp.net/cgi-bin/rfc.cgi?2616#Sec19.3
+             */
+            if (i == '\r') {
+                i = in.read();
+            }
+            if (i == '\n') { //LF
                 System.out.println("[Request line] " + data);
                 break;
             }
@@ -131,11 +137,16 @@ public class HttpServer implements AutoCloseable {
         //今回はリクエストヘッダを利用しないので変数に保持しない 
         data = new ByteArrayOutputStream();
         while (-1 != (i = in.read())) {
-            if (i == '\r') { //CR 
-                in.read(); //LF 
+            if (i == '\r') { //CR
+                i = in.read();
+            }
+            if (i == '\n') { //LF
                 System.out.println("[Request header] " + data);
-                if ((i = in.read()) == '\r') { //CR 
-                    in.read(); //LF 
+                i = in.read();
+                if (i == '\r') {//CR
+                    i = in.read();
+                }
+                if (i == '\n') {//LF
                     break;
                 }
                 data = new ByteArrayOutputStream();

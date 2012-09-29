@@ -91,7 +91,6 @@ public class HttpServer implements AutoCloseable {
         int i;
 
         //リクエストラインを読んで標準出力に書き出す 
-        //今回はGETリクエストが来ることを前提にしているので変数に保持しない 
         while (-1 != (i = in.read())) {
             /*
              * CRを無視してLFで改行の判断をする寛容っぷりを発揮

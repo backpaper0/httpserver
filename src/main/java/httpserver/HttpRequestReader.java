@@ -87,8 +87,8 @@ public class HttpRequestReader {
                 if (i == LF) {
                     //field-valueはLWSを行頭につけると改行可能だけど
                     //今回はそこまで解析しない
-                    String field = data.toString();
-                    requestHeader.put(name, field);
+                    String value = data.toString();
+                    requestHeader.put(name, value);
                     break;
                 }
                 data.write(i);

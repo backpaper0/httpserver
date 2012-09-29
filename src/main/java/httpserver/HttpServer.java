@@ -107,8 +107,9 @@ public class HttpServer implements AutoCloseable {
         }
         String[] requestLine = data.toString().split(" ");
 
-        if (requestLine[0].equals("GET") == false) {
-            //今回はGETリクエスト以外は扱わない
+        if (requestLine[0].equals("GET") == false
+            && requestLine[0].equals("POST") == false) {
+            //今回はGETリクエスト、POSTリクエスト以外は扱わない
             System.out.println(requestLine[0] + "は扱えないメソッド");
             String content = "501 Not Implemented";
             Writer out = new OutputStreamWriter(client.getOutputStream());
@@ -132,25 +133,110 @@ public class HttpServer implements AutoCloseable {
             return;
         }
 
-        //リクエストヘッダを読んで標準出力に書き出す 
-        //今回はリクエストヘッダを利用しないので変数に保持しない 
-        data = new ByteArrayOutputStream();
+        //リクエストヘッダを読む
+        Map<String, String> requestHeader = new HashMap<>();
         while (-1 != (i = in.read())) {
             if (i == '\r') { //CR
                 i = in.read();
             }
             if (i == '\n') { //LF
-                System.out.println("[Request header] " + data);
-                i = in.read();
-                if (i == '\r') {//CR
-                    i = in.read();
-                }
-                if (i == '\n') {//LF
+                break;
+            }
+
+            data = new ByteArrayOutputStream();
+            data.write(i);
+            while (-1 != (i = in.read())) {
+                if (i == ':') {
                     break;
                 }
-                data = new ByteArrayOutputStream();
+                data.write(i);
             }
+            //field-nameは大文字・小文字を区別しない
+            //ここでは全て小文字にしておく
+            String name = data.toString().toLowerCase();
+
+            //fieldに先行するLWSを読み飛ばす
+            i = in.read();
+            if (i == '\r') { //CR
+                i = in.read();
+            }
+            if (i == '\n') { //LF
+                i = in.read();
+            }
+            if ((i != ' ' && i != '\t') == false) {
+                while (-1 != (i = in.read())) {
+                    if (i != ' ' && i != '\t') {
+                        break;
+                    }
+                }
+            }
+
+            data = new ByteArrayOutputStream();
             data.write(i);
+            while (-1 != (i = in.read())) {
+                if (i == '\r') { //CR
+                    i = in.read();
+                }
+                if (i == '\n') { //LF
+                    //field-valueはLWSを行頭につけると改行可能だけど
+                    //今回はそこまで解析しない
+                    String field = data.toString();
+                    requestHeader.put(name, field);
+                    break;
+                }
+                data.write(i);
+            }
+        }
+        System.out.println("[Request header] " + requestHeader);
+
+        byte[] requestEntity = null;
+        if (requestHeader.containsKey("content-length")) {
+            int contentLength =
+                Integer.parseInt(requestHeader.get("content-length"));
+            data = new ByteArrayOutputStream();
+            while (-1 != (i = in.read())) {
+                data.write(i);
+                if (data.size() == contentLength) {
+                    requestEntity = data.toByteArray();
+                    break;
+                }
+            }
+        }
+
+        if (requestLine[0].equals("POST")) {
+            //POSTリクエストは取りあえずリクエストエンティティを
+            //そのまま返す実装にしておく
+            String contentType = requestHeader.get("content-type");
+
+            /* 
+             * レスポンスを書く 
+             */
+            OutputStream responseStream = client.getOutputStream();
+            Writer out = new OutputStreamWriter(responseStream);
+
+            //ステータスライン 
+            out.write("HTTP/1.0 200 OK\r\n");
+
+            //レスポンスヘッダ 
+
+            //general-header
+            out.write("Connection: close\r\n");
+            out.write("Date: " + df.format(new Date()) + "\r\n");
+
+            //response-header
+            out.write("Server: SimpleHttpServer/0.1\r\n");
+
+            //entity-header
+            out.write("Content-Length: " + requestEntity.length + "\r\n");
+            out.write("Content-Type: " + contentType + "\r\n");
+
+            out.write("\r\n");
+            out.flush();
+
+            //エンティティボディ 
+            responseStream.write(requestEntity);
+            responseStream.flush();
+            return;
         }
 
         /*

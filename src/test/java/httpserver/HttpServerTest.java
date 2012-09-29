@@ -6,6 +6,7 @@ import static org.junit.Assert.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Paths;
@@ -73,20 +74,25 @@ public class HttpServerTest {
     }
 
     @Test
-    public void POSTリクエストは未実装() throws Exception {
-        URL url = new URL("http://localhost:8080/hello");
+    public void POSTリクエストでエンティティをそのまま返して貰う() throws Exception {
+        URL url = new URL("http://localhost:8080/echo");
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "text/plain; charset=UTF-8");
+        try (OutputStream out = con.getOutputStream()) {
+            out.write("Hello, POST method!".getBytes());
+        }
 
         int statusCode = con.getResponseCode();
-        assertThat(statusCode, is(501));
+        assertThat(statusCode, is(200));
 
         System.out.println(con.getHeaderFields());
         assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
 
-        try (InputStream in = con.getErrorStream()) {
+        try (InputStream in = con.getInputStream()) {
             String response = readAll(in);
-            assertThat(response, is("501 Not Implemented"));
+            assertThat(response, is("Hello, POST method!"));
         }
     }
 

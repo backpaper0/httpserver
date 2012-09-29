@@ -13,6 +13,8 @@ public class HttpRequestReader {
 
     private static final char LF = '\n';
 
+    private static final char HT = '\t';
+
     private final PushbackInputStream in;
 
     public HttpRequestReader(InputStream in) {
@@ -79,9 +81,9 @@ public class HttpRequestReader {
         if (i == LF) {
             i = in.read();
         }
-        if ((i != ' ' && i != '\t') == false) {
+        if ((i != ' ' && i != HT) == false) {
             while (-1 != (i = in.read())) {
-                if (i != ' ' && i != '\t') {
+                if (i != ' ' && i != HT) {
                     break;
                 }
             }
@@ -95,7 +97,7 @@ public class HttpRequestReader {
             }
             if (i == LF) {
                 i = in.read();
-                if (i != ' ' && i != '\t') {
+                if (i != ' ' && i != HT) {
                     in.unread(i);
 
                     String value = data.toString();
@@ -103,7 +105,7 @@ public class HttpRequestReader {
                 }
                 //field-valueはLWSを行頭につけると改行可能
                 while (-1 != (i = in.read())) {
-                    if (i != ' ' && i != '\t') {
+                    if (i != ' ' && i != HT) {
                         break;
                     }
                 }

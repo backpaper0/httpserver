@@ -22,8 +22,46 @@ public class HttpRequestReader {
     }
 
     public String[] readRequestLine() throws IOException {
-        ByteArrayOutputStream requestLine = new ByteArrayOutputStream();
         int i;
+        ByteArrayOutputStream method = new ByteArrayOutputStream();
+        while (-1 != (i = in.read())) {
+            if (i == ' ' || i == HT) {
+                break;
+            }
+            method.write(i);
+        }
+        if (method.size() == 0) {
+            throw new IllegalStateException();
+        }
+
+        //SPとHTを読み捨てる
+        while (-1 != (i = in.read())) {
+            if (i != ' ' && i != HT) {
+                in.unread(i);
+                break;
+            }
+        }
+
+        ByteArrayOutputStream requestUri = new ByteArrayOutputStream();
+        while (-1 != (i = in.read())) {
+            if (i == ' ' || i == HT) {
+                break;
+            }
+            requestUri.write(i);
+        }
+        if (requestUri.size() == 0) {
+            throw new IllegalStateException();
+        }
+
+        //SPとHTを読み捨てる
+        while (-1 != (i = in.read())) {
+            if (i != ' ' && i != HT) {
+                in.unread(i);
+                break;
+            }
+        }
+
+        ByteArrayOutputStream httpVersion = new ByteArrayOutputStream();
         while (-1 != (i = in.read())) {
             /*
              * CRを無視してLFで改行の判断をする寛容っぷりを発揮
@@ -33,10 +71,14 @@ public class HttpRequestReader {
                 i = in.read();
             }
             if (i == LF) {
-                return requestLine.toString().split(" ");
+                return new String[] {
+                    method.toString(),
+                    requestUri.toString(),
+                    httpVersion.toString() };
             }
-            requestLine.write(i);
+            httpVersion.write(i);
         }
+
         throw new IllegalArgumentException();
     }
 

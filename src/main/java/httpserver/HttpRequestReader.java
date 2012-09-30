@@ -156,12 +156,14 @@ public class HttpRequestReader {
     }
 
     public byte[] readEntityBody(int contentLength) throws IOException {
-        int b;
-        ByteArrayOutputStream entityBody = new ByteArrayOutputStream();
-        while (-1 != (b = in.read())) {
-            entityBody.write(b);
-            if (entityBody.size() == contentLength) {
-                return entityBody.toByteArray();
+        byte[] entityBody = new byte[contentLength];
+        int total = 0;
+        int readSize;
+        while (-1 != (readSize =
+            in.read(entityBody, total, contentLength - total))) {
+            total += readSize;
+            if (total == contentLength) {
+                return entityBody;
             }
         }
         throw new IllegalStateException();

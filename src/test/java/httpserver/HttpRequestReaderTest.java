@@ -4,8 +4,12 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.util.Arrays;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 import org.junit.Test;
+import org.junit.internal.matchers.TypeSafeMatcher;
 
 public class HttpRequestReaderTest {
 
@@ -63,5 +67,52 @@ public class HttpRequestReaderTest {
 
         assertThat(requestHeaderField[0], is("hoge"));
         assertThat(requestHeaderField[1], is("foobar"));
+    }
+
+    @Test
+    public void エンティティボディを読む() throws Exception {
+        String testData = "123456789";
+        byte[] b = testData.getBytes();
+        ByteArrayInputStream in = new ByteArrayInputStream(b);
+        HttpRequestReader reader = new HttpRequestReader(in);
+
+        int contentLength = 5;
+        byte[] entityBody = reader.readEntityBody(contentLength);
+
+        assertThat(entityBody, is(arrayOf("12345".getBytes())));
+    }
+
+    @Test
+    public void エンティティボディを読む_ストリームから一度に読み切れなかった場合をエミュレート() throws Exception {
+        String testData = "123456789";
+        byte[] b = testData.getBytes();
+        ByteArrayInputStream in = new ByteArrayInputStream(b) {
+
+            @Override
+            public synchronized int read(byte[] b, int off, int len) {
+                return super.read(b, off, Math.min(len, 4));
+            }
+        };
+        HttpRequestReader reader = new HttpRequestReader(in);
+
+        int contentLength = 5;
+        byte[] entityBody = reader.readEntityBody(contentLength);
+
+        assertThat(entityBody, is(arrayOf("12345".getBytes())));
+    }
+
+    private static Matcher<byte[]> arrayOf(final byte[] bs) {
+        return new TypeSafeMatcher<byte[]>() {
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendValue(Arrays.toString(bs));
+            }
+
+            @Override
+            public boolean matchesSafely(byte[] item) {
+                return Arrays.equals(item, bs);
+            }
+        };
     }
 }

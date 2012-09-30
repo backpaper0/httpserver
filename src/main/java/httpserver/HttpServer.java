@@ -3,6 +3,7 @@ package httpserver;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -77,9 +78,6 @@ public class HttpServer implements AutoCloseable {
     }
 
     private void handleClientSocket(Socket client) throws IOException {
-        //ちょくちょく使うのでインスタンス化しとく
-        DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
-        df.setTimeZone(TimeZone.getTimeZone("GMT"));
 
         /* 
          * リクエストを読む 
@@ -90,12 +88,39 @@ public class HttpServer implements AutoCloseable {
         //リクエストラインを読んで標準出力に書き出す 
         String[] requestLine = reader.readRequestLine();
 
+        //リクエストヘッダを読む
+        Map<String, String> requestHeader = reader.readRequestHeader();
+        System.out.println("[Request header] " + requestHeader);
+
+        byte[] requestEntity = null;
+        if (requestHeader.containsKey("content-length")) {
+            int contentLength =
+                Integer.parseInt(requestHeader.get("content-length"));
+            requestEntity = reader.readEntityBody(contentLength);
+        }
+
+        handleRequest(
+            client.getOutputStream(),
+            requestLine,
+            requestHeader,
+            requestEntity);
+    }
+
+    private void handleRequest(OutputStream responseStream,
+            String[] requestLine, Map<String, String> requestHeader,
+            byte[] requestEntity) throws IOException,
+            UnsupportedEncodingException {
+
+        //ちょくちょく使うのでインスタンス化しとく
+        DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+        df.setTimeZone(TimeZone.getTimeZone("GMT"));
+
         if (requestLine[0].equals("GET") == false
             && requestLine[0].equals("POST") == false) {
             //今回はGETリクエスト、POSTリクエスト以外は扱わない
             System.out.println(requestLine[0] + "は扱えないメソッド");
             String content = "501 Not Implemented";
-            Writer out = new OutputStreamWriter(client.getOutputStream());
+            Writer out = new OutputStreamWriter(responseStream);
             out.write("HTTP/1.0 501 Not Implemented\r\n");
 
             //general-header
@@ -116,17 +141,6 @@ public class HttpServer implements AutoCloseable {
             return;
         }
 
-        //リクエストヘッダを読む
-        Map<String, String> requestHeader = reader.readRequestHeader();
-        System.out.println("[Request header] " + requestHeader);
-
-        byte[] requestEntity = null;
-        if (requestHeader.containsKey("content-length")) {
-            int contentLength =
-                Integer.parseInt(requestHeader.get("content-length"));
-            requestEntity = reader.readEntityBody(contentLength);
-        }
-
         if (requestLine[0].equals("POST")) {
             //POSTリクエストは取りあえずリクエストエンティティを
             //そのまま返す実装にしておく
@@ -135,7 +149,6 @@ public class HttpServer implements AutoCloseable {
             /* 
              * レスポンスを書く 
              */
-            OutputStream responseStream = client.getOutputStream();
             Writer out = new OutputStreamWriter(responseStream);
 
             //ステータスライン 
@@ -173,7 +186,7 @@ public class HttpServer implements AutoCloseable {
             //ファイルがなければ404
             System.out.println(requestPath + "が見つからない");
             String content = "404 Not Found";
-            Writer out = new OutputStreamWriter(client.getOutputStream());
+            Writer out = new OutputStreamWriter(responseStream);
             out.write("HTTP/1.0 404 Not Found\r\n");
 
             //general-header
@@ -220,7 +233,6 @@ public class HttpServer implements AutoCloseable {
         /* 
          * レスポンスを書く 
          */
-        OutputStream responseStream = client.getOutputStream();
         Writer out = new OutputStreamWriter(responseStream);
 
         //ステータスライン 

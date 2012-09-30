@@ -8,3 +8,11 @@ repositories {
 dependencies {
   testCompile 'junit:junit:4.10'
 }
+
+eclipseProject << {
+  copy {
+    from 'src/eclipse/settings'
+    into '.settings'
+  }
+}
+

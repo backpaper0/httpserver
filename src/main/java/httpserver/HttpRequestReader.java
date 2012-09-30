@@ -22,61 +22,61 @@ public class HttpRequestReader {
     }
 
     public String[] readRequestLine() throws IOException {
-        int i;
+        int b;
         ByteArrayOutputStream method = new ByteArrayOutputStream();
-        while (-1 != (i = in.read())) {
-            if (i == ' ' || i == HT) {
+        while (-1 != (b = in.read())) {
+            if (b == ' ' || b == HT) {
                 break;
             }
-            method.write(i);
+            method.write(b);
         }
         if (method.size() == 0) {
             throw new IllegalStateException();
         }
 
         //SPとHTを読み捨てる
-        while (-1 != (i = in.read())) {
-            if (i != ' ' && i != HT) {
-                in.unread(i);
+        while (-1 != (b = in.read())) {
+            if (b != ' ' && b != HT) {
+                in.unread(b);
                 break;
             }
         }
 
         ByteArrayOutputStream requestUri = new ByteArrayOutputStream();
-        while (-1 != (i = in.read())) {
-            if (i == ' ' || i == HT) {
+        while (-1 != (b = in.read())) {
+            if (b == ' ' || b == HT) {
                 break;
             }
-            requestUri.write(i);
+            requestUri.write(b);
         }
         if (requestUri.size() == 0) {
             throw new IllegalStateException();
         }
 
         //SPとHTを読み捨てる
-        while (-1 != (i = in.read())) {
-            if (i != ' ' && i != HT) {
-                in.unread(i);
+        while (-1 != (b = in.read())) {
+            if (b != ' ' && b != HT) {
+                in.unread(b);
                 break;
             }
         }
 
         ByteArrayOutputStream httpVersion = new ByteArrayOutputStream();
-        while (-1 != (i = in.read())) {
+        while (-1 != (b = in.read())) {
             /*
              * CRを無視してLFで改行の判断をする寛容っぷりを発揮
              * http://www.studyinghttp.net/cgi-bin/rfc.cgi?2616#Sec19.3
              */
-            if (i == CR) {
-                i = in.read();
+            if (b == CR) {
+                b = in.read();
             }
-            if (i == LF) {
+            if (b == LF) {
                 return new String[] {
                     method.toString(),
                     requestUri.toString(),
                     httpVersion.toString() };
             }
-            httpVersion.write(i);
+            httpVersion.write(b);
         }
 
         throw new IllegalArgumentException();
@@ -84,15 +84,15 @@ public class HttpRequestReader {
 
     public Map<String, String> readRequestHeader() throws IOException {
         Map<String, String> requestHeader = new HashMap<>();
-        int i;
-        while (-1 != (i = in.read())) {
-            if (i == CR) {
-                i = in.read();
+        int b;
+        while (-1 != (b = in.read())) {
+            if (b == CR) {
+                b = in.read();
             }
-            if (i == LF) {
+            if (b == LF) {
                 break;
             }
-            in.unread(i);
+            in.unread(b);
 
             String[] requestHeaderField = readRequestHeaderField();
             requestHeader.put(requestHeaderField[0], requestHeaderField[1]);
@@ -102,40 +102,40 @@ public class HttpRequestReader {
 
     protected String[] readRequestHeaderField() throws IOException {
         ByteArrayOutputStream name = new ByteArrayOutputStream();
-        int i;
-        while (-1 != (i = in.read())) {
-            if (i == ':') {
+        int b;
+        while (-1 != (b = in.read())) {
+            if (b == ':') {
                 break;
             }
-            name.write(i);
+            name.write(b);
         }
 
         //fieldに先行するLWSを読み飛ばす
-        i = in.read();
-        if (i == CR) {
-            i = in.read();
+        b = in.read();
+        if (b == CR) {
+            b = in.read();
         }
-        if (i == LF) {
-            i = in.read();
+        if (b == LF) {
+            b = in.read();
         }
-        if ((i != ' ' && i != HT) == false) {
-            while (-1 != (i = in.read())) {
-                if (i != ' ' && i != HT) {
+        if ((b != ' ' && b != HT) == false) {
+            while (-1 != (b = in.read())) {
+                if (b != ' ' && b != HT) {
                     break;
                 }
             }
         }
 
         ByteArrayOutputStream value = new ByteArrayOutputStream();
-        value.write(i);
-        while (-1 != (i = in.read())) {
-            if (i == CR) {
-                i = in.read();
+        value.write(b);
+        while (-1 != (b = in.read())) {
+            if (b == CR) {
+                b = in.read();
             }
-            if (i == LF) {
-                i = in.read();
-                if (i != ' ' && i != HT) {
-                    in.unread(i);
+            if (b == LF) {
+                b = in.read();
+                if (b != ' ' && b != HT) {
+                    in.unread(b);
 
                     //field-nameは大文字・小文字を区別しない
                     //ここでは全て小文字にしておく
@@ -144,22 +144,22 @@ public class HttpRequestReader {
                         value.toString() };
                 }
                 //field-valueはLWSを行頭につけると改行可能
-                while (-1 != (i = in.read())) {
-                    if (i != ' ' && i != HT) {
+                while (-1 != (b = in.read())) {
+                    if (b != ' ' && b != HT) {
                         break;
                     }
                 }
             }
-            value.write(i);
+            value.write(b);
         }
         throw new IllegalStateException();
     }
 
     public byte[] readEntityBody(int contentLength) throws IOException {
-        int i;
+        int b;
         ByteArrayOutputStream entityBody = new ByteArrayOutputStream();
-        while (-1 != (i = in.read())) {
-            entityBody.write(i);
+        while (-1 != (b = in.read())) {
+            entityBody.write(b);
             if (entityBody.size() == contentLength) {
                 return entityBody.toByteArray();
             }

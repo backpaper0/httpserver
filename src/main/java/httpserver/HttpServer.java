@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -28,9 +27,10 @@ public class HttpServer implements AutoCloseable {
 
     private final HttpRequestHandler httpRequestHandler;
 
-    public HttpServer(Path webappDir, int port) throws IOException {
+    public HttpServer(HttpRequestHandler httpRequestHandler, int port)
+            throws IOException {
         this.server = new ServerSocket(port);
-        this.httpRequestHandler = new HttpRequestHandler(webappDir);
+        this.httpRequestHandler = httpRequestHandler;
         this.executor = Executors.newSingleThreadExecutor();
         this.executor.submit(new Callable<Void>() {
 

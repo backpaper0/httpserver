@@ -1,17 +1,28 @@
 package httpserver;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.file.Path;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class HttpServer implements AutoCloseable {
+
+    private static final byte[] CRLF = "\r\n".getBytes();
 
     private final int port;
 
@@ -83,11 +94,70 @@ public class HttpServer implements AutoCloseable {
             requestEntity = reader.readEntityBody(contentLength);
         }
 
-        httpRequestHandler.handleRequest(
-            client.getOutputStream(),
-            requestLine,
-            requestHeader,
-            requestEntity);
+        Object[] response =
+            httpRequestHandler.handleRequest(
+                client.getOutputStream(),
+                requestLine,
+                requestHeader,
+                requestEntity);
+        String httpVersion = (String) response[0];
+        Integer statusCode = (Integer) response[1];
+        String reasonPhrase = (String) response[2];
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseHeader = (Map<String, Object>) response[3];
+        try (InputStream messageBodyInputStream = (InputStream) response[4]) {
+
+            OutputStream out = client.getOutputStream();
+
+            //ステータスライン
+            out.write(httpVersion.getBytes());
+            out.write(' ');
+            out.write(statusCode.toString().getBytes());
+            out.write(' ');
+            out.write(reasonPhrase.getBytes());
+            out.write(CRLF);
+
+            //レスポンスヘッダ
+            DateFormat df =
+                new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+            df.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+            LinkedHashMap<String, Object> header = new LinkedHashMap<>();
+
+            //general-header
+            header.put("Connection", "close");
+            header.put("Date", df.format(new Date()));
+
+            //response-header
+            header.put("Server", "SimpleHttpServer/0.1");
+
+            header.putAll(responseHeader);
+
+            //entity-header
+            ByteArrayOutputStream messageBodyOutputStream =
+                new ByteArrayOutputStream();
+            byte[] b = new byte[8192];
+            int i;
+            while (-1 != (i = messageBodyInputStream.read(b, 0, b.length))) {
+                messageBodyOutputStream.write(b, 0, i);
+            }
+            byte[] messageBody = messageBodyOutputStream.toByteArray();
+            responseHeader.put("Content-Length", messageBody.length);
+
+            for (Entry<String, Object> field : header.entrySet()) {
+                out.write(field.getKey().getBytes());
+                out.write(": ".getBytes());
+                out.write(field.getValue().toString().getBytes());
+                out.write(CRLF);
+            }
+
+            out.write(CRLF);
+
+            //メッセージボディ
+            out.write(messageBody);
+
+            out.flush();
+        }
     }
 
 }

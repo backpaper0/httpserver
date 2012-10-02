@@ -1,16 +1,16 @@
 package httpserver;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -28,7 +28,7 @@ public class HttpRequestHandler {
         this.contentTypes.put(".json", "application/json");
     }
 
-    public void handleRequest(OutputStream responseStream,
+    public Object[] handleRequest(OutputStream responseStream,
             String[] requestLine, Map<String, String> requestHeader,
             byte[] requestEntity) throws IOException,
             UnsupportedEncodingException {
@@ -41,26 +41,19 @@ public class HttpRequestHandler {
             && requestLine[0].equals("POST") == false) {
             //今回はGETリクエスト、POSTリクエスト以外は扱わない
             System.out.println(requestLine[0] + "は扱えないメソッド");
-            String content = "501 Not Implemented";
-            Writer out = new OutputStreamWriter(responseStream);
-            out.write("HTTP/1.0 501 Not Implemented\r\n");
 
-            //general-header
-            out.write("Connection: close\r\n");
-            out.write("Date: " + df.format(new Date()) + "\r\n");
+            Map<String, Object> responseHeader = new LinkedHashMap<>();
+            responseHeader.put("Content-Type", "text/plain; charset=UTF-8");
 
-            //response-header
-            out.write("Server: SimpleHttpServer/0.1\r\n");
-
-            //entity-header
-            out.write("Content-Length: "
-                + content.getBytes("UTF-8").length
-                + "\r\n");
-            out.write("Content-Type: text/plain; charset=UTF-8\r\n");
-            out.write("\r\n");
-            out.write(content);
-            out.flush();
-            return;
+            Object[] response =
+                {
+                    "HTTP/1.0",
+                    501,
+                    "Not Implemented",
+                    responseHeader,
+                    new ByteArrayInputStream(
+                        "501 Not Implemented".getBytes("UTF-8")) };
+            return response;
         }
 
         if (requestLine[0].equals("POST")) {
@@ -71,31 +64,17 @@ public class HttpRequestHandler {
             /* 
              * レスポンスを書く 
              */
-            Writer out = new OutputStreamWriter(responseStream);
+            Map<String, Object> responseHeader = new LinkedHashMap<>();
+            responseHeader.put("Content-Type", contentType);
 
-            //ステータスライン 
-            out.write("HTTP/1.0 200 OK\r\n");
-
-            //レスポンスヘッダ 
-
-            //general-header
-            out.write("Connection: close\r\n");
-            out.write("Date: " + df.format(new Date()) + "\r\n");
-
-            //response-header
-            out.write("Server: SimpleHttpServer/0.1\r\n");
-
-            //entity-header
-            out.write("Content-Length: " + requestEntity.length + "\r\n");
-            out.write("Content-Type: " + contentType + "\r\n");
-
-            out.write("\r\n");
-            out.flush();
-
-            //エンティティボディ 
-            responseStream.write(requestEntity);
-            responseStream.flush();
-            return;
+            Object[] response =
+                {
+                    "HTTP/1.0",
+                    200,
+                    "OK",
+                    responseHeader,
+                    new ByteArrayInputStream(requestEntity) };
+            return response;
         }
 
         /*
@@ -107,27 +86,18 @@ public class HttpRequestHandler {
         if (Files.notExists(requestPath)) {
             //ファイルがなければ404
             System.out.println(requestPath + "が見つからない");
-            String content = "404 Not Found";
-            Writer out = new OutputStreamWriter(responseStream);
-            out.write("HTTP/1.0 404 Not Found\r\n");
 
-            //general-header
-            out.write("Connection: close\r\n");
-            out.write("Date: " + df.format(new Date()) + "\r\n");
+            Map<String, Object> responseHeader = new LinkedHashMap<>();
+            responseHeader.put("Content-Type", "text/plain; charset=UTF-8");
 
-            //response-header
-            out.write("Server: SimpleHttpServer/0.1\r\n");
-
-            //entity-header
-            out.write("Content-Length: "
-                + content.getBytes("UTF-8").length
-                + "\r\n");
-            out.write("Content-Type: text/plain; charset=UTF-8\r\n");
-            out.write("\r\n");
-
-            out.write(content);
-            out.flush();
-            return;
+            Object[] response =
+                {
+                    "HTTP/1.0",
+                    404,
+                    "Not Found",
+                    responseHeader,
+                    new ByteArrayInputStream("404 Not Found".getBytes("UTF-8")) };
+            return response;
         }
 
         /*
@@ -155,31 +125,18 @@ public class HttpRequestHandler {
         /* 
          * レスポンスを書く 
          */
-        Writer out = new OutputStreamWriter(responseStream);
+        Map<String, Object> responseHeader = new LinkedHashMap<>();
+        responseHeader.put("Content-Type", contentType + "; charset=UTF-8");
+        responseHeader.put("Last-Modified", lastModified);
 
-        //ステータスライン 
-        out.write("HTTP/1.0 200 OK\r\n");
-
-        //レスポンスヘッダ 
-
-        //general-header
-        out.write("Connection: close\r\n");
-        out.write("Date: " + df.format(new Date()) + "\r\n");
-
-        //response-header
-        out.write("Server: SimpleHttpServer/0.1\r\n");
-
-        //entity-header
-        out.write("Content-Length: " + fileContent.length + "\r\n");
-        out.write("Content-Type: " + contentType + "; charset=UTF-8\r\n");
-        out.write("Last-Modified: " + lastModified + "\r\n");
-
-        out.write("\r\n");
-        out.flush();
-
-        //エンティティボディ 
-        responseStream.write(fileContent);
-        responseStream.flush();
+        Object[] response =
+            {
+                "HTTP/1.0",
+                200,
+                "OK",
+                responseHeader,
+                new ByteArrayInputStream(fileContent) };
+        return response;
     }
 
 }

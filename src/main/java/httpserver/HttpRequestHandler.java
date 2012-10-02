@@ -10,7 +10,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -28,7 +27,7 @@ public class HttpRequestHandler {
         this.contentTypes.put(".json", "application/json");
     }
 
-    public Object[] handleRequest(OutputStream responseStream,
+    public HttpResponse handleRequest(OutputStream responseStream,
             String[] requestLine, Map<String, String> requestHeader,
             byte[] requestEntity) throws IOException,
             UnsupportedEncodingException {
@@ -42,17 +41,15 @@ public class HttpRequestHandler {
             //今回はGETリクエスト、POSTリクエスト以外は扱わない
             System.out.println(requestLine[0] + "は扱えないメソッド");
 
-            Map<String, Object> responseHeader = new LinkedHashMap<>();
-            responseHeader.put("Content-Type", "text/plain; charset=UTF-8");
-
-            Object[] response =
-                {
-                    "HTTP/1.0",
-                    501,
-                    "Not Implemented",
-                    responseHeader,
-                    new ByteArrayInputStream(
-                        "501 Not Implemented".getBytes("UTF-8")) };
+            HttpResponse response = new HttpResponse();
+            response.setHttpVersion("HTTP/1.0");
+            response.setStatusCode(501);
+            response.setReasonPhase("Not Implemented");
+            response.getMessageHeader().put(
+                "Content-Type",
+                "text/plain; charset=UTF-8");
+            response.setMessageBody(new ByteArrayInputStream(
+                "501 Not Implemented".getBytes("UTF-8")));
             return response;
         }
 
@@ -64,16 +61,12 @@ public class HttpRequestHandler {
             /* 
              * レスポンスを書く 
              */
-            Map<String, Object> responseHeader = new LinkedHashMap<>();
-            responseHeader.put("Content-Type", contentType);
-
-            Object[] response =
-                {
-                    "HTTP/1.0",
-                    200,
-                    "OK",
-                    responseHeader,
-                    new ByteArrayInputStream(requestEntity) };
+            HttpResponse response = new HttpResponse();
+            response.setHttpVersion("HTTP/1.0");
+            response.setStatusCode(200);
+            response.setReasonPhase("OK");
+            response.getMessageHeader().put("Content-Type", contentType);
+            response.setMessageBody(new ByteArrayInputStream(requestEntity));
             return response;
         }
 
@@ -87,16 +80,15 @@ public class HttpRequestHandler {
             //ファイルがなければ404
             System.out.println(requestPath + "が見つからない");
 
-            Map<String, Object> responseHeader = new LinkedHashMap<>();
-            responseHeader.put("Content-Type", "text/plain; charset=UTF-8");
-
-            Object[] response =
-                {
-                    "HTTP/1.0",
-                    404,
-                    "Not Found",
-                    responseHeader,
-                    new ByteArrayInputStream("404 Not Found".getBytes("UTF-8")) };
+            HttpResponse response = new HttpResponse();
+            response.setHttpVersion("HTTP/1.0");
+            response.setStatusCode(404);
+            response.setReasonPhase("Not Found");
+            response.getMessageHeader().put(
+                "Content-Type",
+                "text/plain; charset=UTF-8");
+            response.setMessageBody(new ByteArrayInputStream("404 Not Found"
+                .getBytes("UTF-8")));
             return response;
         }
 
@@ -125,17 +117,15 @@ public class HttpRequestHandler {
         /* 
          * レスポンスを書く 
          */
-        Map<String, Object> responseHeader = new LinkedHashMap<>();
-        responseHeader.put("Content-Type", contentType + "; charset=UTF-8");
-        responseHeader.put("Last-Modified", lastModified);
-
-        Object[] response =
-            {
-                "HTTP/1.0",
-                200,
-                "OK",
-                responseHeader,
-                new ByteArrayInputStream(fileContent) };
+        HttpResponse response = new HttpResponse();
+        response.setHttpVersion("HTTP/1.0");
+        response.setStatusCode(200);
+        response.setReasonPhase("OK");
+        response.getMessageHeader().put(
+            "Content-Type",
+            contentType + "; charset=UTF-8");
+        response.getMessageHeader().put("Last-Modified", lastModified);
+        response.setMessageBody(new ByteArrayInputStream(fileContent));
         return response;
     }
 

@@ -82,18 +82,17 @@ public class HttpServer implements AutoCloseable {
             requestEntity = reader.readEntityBody(contentLength);
         }
 
-        Object[] response =
+        HttpResponse response =
             httpRequestHandler.handleRequest(
                 client.getOutputStream(),
                 requestLine,
                 requestHeader,
                 requestEntity);
-        String httpVersion = (String) response[0];
-        Integer statusCode = (Integer) response[1];
-        String reasonPhrase = (String) response[2];
-        @SuppressWarnings("unchecked")
-        Map<String, Object> responseHeader = (Map<String, Object>) response[3];
-        try (InputStream messageBodyInputStream = (InputStream) response[4]) {
+        String httpVersion = response.getHttpVersion();
+        Integer statusCode = response.getStatusCode();
+        String reasonPhrase = response.getReasonPhase();
+        Map<String, Object> responseHeader = response.getMessageHeader();
+        try (InputStream messageBodyInputStream = response.getMessageBody()) {
 
             OutputStream out = client.getOutputStream();
 

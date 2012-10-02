@@ -4,10 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.nio.file.Path;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -24,8 +22,6 @@ public class HttpServer implements AutoCloseable {
 
     private static final byte[] CRLF = "\r\n".getBytes();
 
-    private final int port;
-
     private final ServerSocket server;
 
     private final ExecutorService executor;
@@ -33,14 +29,10 @@ public class HttpServer implements AutoCloseable {
     private final HttpRequestHandler httpRequestHandler;
 
     public HttpServer(Path webappDir, int port) throws IOException {
-        this.port = port;
-        this.server = new ServerSocket();
-        this.executor = Executors.newSingleThreadExecutor();
+        this.server = new ServerSocket(port);
         this.httpRequestHandler = new HttpRequestHandler(webappDir);
-    }
-
-    public void start() {
-        executor.submit(new Callable<Void>() {
+        this.executor = Executors.newSingleThreadExecutor();
+        this.executor.submit(new Callable<Void>() {
 
             @Override
             public Void call() throws Exception {
@@ -59,10 +51,6 @@ public class HttpServer implements AutoCloseable {
     }
 
     private void process() throws IOException {
-
-        SocketAddress endpoint = new InetSocketAddress(port);
-        server.bind(endpoint);
-
         while (Thread.currentThread().isInterrupted() == false
             && server.isClosed() == false) {
 

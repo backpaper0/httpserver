@@ -155,8 +155,7 @@ public class HttpServerTest {
         }
 
         public HttpResponse handleRequest(OutputStream responseStream,
-                String[] requestLine, Map<String, String> requestHeader,
-                byte[] requestEntity) throws IOException,
+                HttpRequest request) throws IOException,
                 UnsupportedEncodingException {
 
             //ちょくちょく使うのでインスタンス化しとく
@@ -164,10 +163,10 @@ public class HttpServerTest {
                 new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
             df.setTimeZone(TimeZone.getTimeZone("GMT"));
 
-            if (requestLine[0].equals("GET") == false
-                && requestLine[0].equals("POST") == false) {
+            if (request.getRequestLine()[0].equals("GET") == false
+                && request.getRequestLine()[0].equals("POST") == false) {
                 //今回はGETリクエスト、POSTリクエスト以外は扱わない
-                System.out.println(requestLine[0] + "は扱えないメソッド");
+                System.out.println(request.getRequestLine()[0] + "は扱えないメソッド");
 
                 HttpResponse response = new HttpResponse();
                 response.setHttpVersion("HTTP/1.0");
@@ -181,10 +180,11 @@ public class HttpServerTest {
                 return response;
             }
 
-            if (requestLine[0].equals("POST")) {
+            if (request.getRequestLine()[0].equals("POST")) {
                 //POSTリクエストは取りあえずリクエストエンティティを
                 //そのまま返す実装にしておく
-                String contentType = requestHeader.get("content-type");
+                String contentType =
+                    request.getRequestHeader().get("content-type");
 
                 /* 
                  * レスポンスを書く 
@@ -194,8 +194,8 @@ public class HttpServerTest {
                 response.setStatusCode(200);
                 response.setReasonPhase("OK");
                 response.getMessageHeader().put("Content-Type", contentType);
-                response
-                    .setMessageBody(new ByteArrayInputStream(requestEntity));
+                response.setMessageBody(new ByteArrayInputStream(request
+                    .getRequestEntity()));
                 return response;
             }
 
@@ -203,7 +203,8 @@ public class HttpServerTest {
              * リクエストを解析（というほどのことはしていないが）
              */
             //Request-URI は abs_path であることを前提にしておく
-            Path requestPath = webappDir.resolve(requestLine[1].substring(1));
+            Path requestPath =
+                webappDir.resolve(request.getRequestLine()[1].substring(1));
 
             if (Files.notExists(requestPath)) {
                 //ファイルがなければ404

@@ -65,29 +65,26 @@ public class HttpServer implements AutoCloseable {
         /* 
          * リクエストを読む 
          */
+        HttpRequest request = new HttpRequest();
         HttpRequestReader reader =
             new HttpRequestReader(client.getInputStream());
 
         //リクエストラインを読んで標準出力に書き出す 
-        String[] requestLine = reader.readRequestLine();
+        request.setRequestLine(reader.readRequestLine());
 
         //リクエストヘッダを読む
-        Map<String, String> requestHeader = reader.readRequestHeader();
-        System.out.println("[Request header] " + requestHeader);
+        request.setRequestHeader(reader.readRequestHeader());
+        System.out.println("[Request header] " + request.getRequestHeader());
 
-        byte[] requestEntity = null;
-        if (requestHeader.containsKey("content-length")) {
+        if (request.getRequestHeader().containsKey("content-length")) {
             int contentLength =
-                Integer.parseInt(requestHeader.get("content-length"));
-            requestEntity = reader.readEntityBody(contentLength);
+                Integer.parseInt(request.getRequestHeader().get(
+                    "content-length"));
+            request.setRequestEntity(reader.readEntityBody(contentLength));
         }
 
         HttpResponse response =
-            httpRequestHandler.handleRequest(
-                client.getOutputStream(),
-                requestLine,
-                requestHeader,
-                requestEntity);
+            httpRequestHandler.handleRequest(client.getOutputStream(), request);
         String httpVersion = response.getHttpVersion();
         Integer statusCode = response.getStatusCode();
         String reasonPhrase = response.getReasonPhase();

@@ -109,9 +109,10 @@ public class HttpServerTest {
                 @Override
                 public void evaluate() throws Throwable {
                     try (HttpServer server =
-                        new HttpServerStarter(
-                            Paths.get("src", "main", "webapp"),
-                            8080).start()) {
+                        new HttpServerStarter(new HttpRequestHandler(Paths.get(
+                            "src",
+                            "main",
+                            "webapp")), 8080).start()) {
                         base.evaluate();
                     }
                 }

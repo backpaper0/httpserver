@@ -154,9 +154,8 @@ public class HttpServerTest {
             this.contentTypes.put(".json", "application/json");
         }
 
-        public HttpResponse handleRequest(OutputStream responseStream,
-                HttpRequest request) throws IOException,
-                UnsupportedEncodingException {
+        public HttpResponse handleRequest(HttpRequest request)
+                throws IOException, UnsupportedEncodingException {
 
             //ちょくちょく使うのでインスタンス化しとく
             DateFormat df =

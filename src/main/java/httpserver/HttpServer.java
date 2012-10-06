@@ -83,8 +83,7 @@ public class HttpServer implements AutoCloseable {
             request.setRequestEntity(reader.readEntityBody(contentLength));
         }
 
-        HttpResponse response =
-            httpRequestHandler.handleRequest(client.getOutputStream(), request);
+        HttpResponse response = httpRequestHandler.handleRequest(request);
         String httpVersion = response.getHttpVersion();
         Integer statusCode = response.getStatusCode();
         String reasonPhrase = response.getReasonPhase();

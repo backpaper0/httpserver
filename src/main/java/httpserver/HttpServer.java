@@ -3,7 +3,6 @@ package httpserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.DateFormat;
@@ -11,15 +10,12 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class HttpServer implements AutoCloseable {
-
-    private static final byte[] CRLF = "\r\n".getBytes();
 
     private final ServerSocket server;
 
@@ -87,18 +83,15 @@ public class HttpServer implements AutoCloseable {
         String httpVersion = response.getHttpVersion();
         Integer statusCode = response.getStatusCode();
         String reasonPhrase = response.getReasonPhase();
+
         Map<String, Object> responseHeader = response.getMessageHeader();
         try (InputStream messageBodyInputStream = response.getMessageBody()) {
 
-            OutputStream out = client.getOutputStream();
+            HttpResponseWriter writer =
+                new HttpResponseWriter(client.getOutputStream());
 
             //ステータスライン
-            out.write(httpVersion.getBytes());
-            out.write(' ');
-            out.write(statusCode.toString().getBytes());
-            out.write(' ');
-            out.write(reasonPhrase.getBytes());
-            out.write(CRLF);
+            writer.writeStatusLine(httpVersion, statusCode, reasonPhrase);
 
             //レスポンスヘッダ
             DateFormat df =
@@ -127,19 +120,10 @@ public class HttpServer implements AutoCloseable {
             byte[] messageBody = messageBodyOutputStream.toByteArray();
             responseHeader.put("Content-Length", messageBody.length);
 
-            for (Entry<String, Object> field : header.entrySet()) {
-                out.write(field.getKey().getBytes());
-                out.write(": ".getBytes());
-                out.write(field.getValue().toString().getBytes());
-                out.write(CRLF);
-            }
-
-            out.write(CRLF);
+            writer.writeResponseHeader(header);
 
             //メッセージボディ
-            out.write(messageBody);
-
-            out.flush();
+            writer.writeResponseHeader(messageBody);
         }
     }
 

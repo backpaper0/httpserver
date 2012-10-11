@@ -1,15 +1,12 @@
 package httpserver;
 
+import static httpserver.test.OreOreMatchers.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
-import java.util.Arrays;
 
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
 import org.junit.Test;
-import org.junit.internal.matchers.TypeSafeMatcher;
 
 public class HttpRequestReaderTest {
 
@@ -79,7 +76,7 @@ public class HttpRequestReaderTest {
         int contentLength = 5;
         byte[] entityBody = reader.readEntityBody(contentLength);
 
-        assertThat(entityBody, is(arrayOf("12345".getBytes())));
+        assertThat(entityBody, is(array("12345".getBytes())));
     }
 
     @Test
@@ -98,21 +95,6 @@ public class HttpRequestReaderTest {
         int contentLength = 5;
         byte[] entityBody = reader.readEntityBody(contentLength);
 
-        assertThat(entityBody, is(arrayOf("12345".getBytes())));
-    }
-
-    private static Matcher<byte[]> arrayOf(final byte[] bs) {
-        return new TypeSafeMatcher<byte[]>() {
-
-            @Override
-            public void describeTo(Description description) {
-                description.appendValue(Arrays.toString(bs));
-            }
-
-            @Override
-            public boolean matchesSafely(byte[] item) {
-                return Arrays.equals(item, bs);
-            }
-        };
+        assertThat(entityBody, is(array("12345".getBytes())));
     }
 }

@@ -38,7 +38,7 @@ public class HttpResponseWriter {
         out.flush();
     }
 
-    public void writeResponseHeader(byte[] messageBody) throws IOException {
+    public void writeResponseBody(byte[] messageBody) throws IOException {
         out.write(messageBody);
         out.flush();
     }

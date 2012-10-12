@@ -123,7 +123,7 @@ public class HttpServer implements AutoCloseable {
             writer.writeResponseHeader(header);
 
             //メッセージボディ
-            writer.writeResponseHeader(messageBody);
+            writer.writeResponseBody(messageBody);
         }
     }
 

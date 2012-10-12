@@ -73,7 +73,7 @@ public class HttpServer implements AutoCloseable {
 
         HttpResponse response = httpRequestHandler.handleRequest(request);
         HttpResponseWriter writer =
-            new HttpResponseWriter(client.getOutputStream());
+            new Http11ResponseWriterImpl(client.getOutputStream());
         writer.write(response);
     }
 }

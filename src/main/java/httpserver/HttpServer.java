@@ -118,7 +118,7 @@ public class HttpServer implements AutoCloseable {
                 messageBodyOutputStream.write(b, 0, i);
             }
             byte[] messageBody = messageBodyOutputStream.toByteArray();
-            responseHeader.put("Content-Length", messageBody.length);
+            header.put("Content-Length", messageBody.length);
 
             writer.writeResponseHeader(header);
 

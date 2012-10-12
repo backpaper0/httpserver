@@ -122,7 +122,6 @@ public class HttpServerTest {
         public HttpResponse handleRequest(HttpRequest request)
                 throws IOException, UnsupportedEncodingException {
             HttpResponse response = new HttpResponse();
-            response.setHttpVersion("HTTP/1.1");
             response.setStatusCode(200);
             response.setReasonPhase("OK");
             response.getMessageHeader().put(

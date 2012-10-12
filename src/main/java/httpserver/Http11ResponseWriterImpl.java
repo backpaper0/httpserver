@@ -22,10 +22,9 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
         this.out = out;
     }
 
-    public void writeStatusLine(String httpVersion, Integer statusCode,
-            String reasonPhrase) throws IOException {
-        out.write(httpVersion.getBytes());
-        out.write(' ');
+    public void writeStatusLine(Integer statusCode, String reasonPhrase)
+            throws IOException {
+        out.write("HTTP/1.1 ".getBytes());
         out.write(statusCode.toString().getBytes());
         out.write(' ');
         out.write(reasonPhrase.getBytes());
@@ -68,7 +67,6 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
 
     @Override
     public void write(HttpResponse response) throws IOException {
-        String httpVersion = response.getHttpVersion();
         Integer statusCode = response.getStatusCode();
         String reasonPhrase = response.getReasonPhase();
 
@@ -76,7 +74,7 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
         try (InputStream messageBodyInputStream = response.getMessageBody()) {
 
             //ステータスライン
-            writeStatusLine(httpVersion, statusCode, reasonPhrase);
+            writeStatusLine(statusCode, reasonPhrase);
 
             //レスポンスヘッダ
             DateFormat df =

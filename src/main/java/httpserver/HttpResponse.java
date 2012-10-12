@@ -6,8 +6,6 @@ import java.util.Map;
 
 public class HttpResponse {
 
-    private String httpVersion;
-
     private int statusCode;
 
     private String reasonPhase;
@@ -15,14 +13,6 @@ public class HttpResponse {
     private Map<String, Object> messageHeader = new LinkedHashMap<>();;
 
     private InputStream messageBody;
-
-    public String getHttpVersion() {
-        return httpVersion;
-    }
-
-    public void setHttpVersion(String httpVersion) {
-        this.httpVersion = httpVersion;
-    }
 
     public int getStatusCode() {
         return statusCode;

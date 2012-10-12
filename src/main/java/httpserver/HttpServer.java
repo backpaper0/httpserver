@@ -1,16 +1,8 @@
 package httpserver;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TimeZone;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -80,70 +72,8 @@ public class HttpServer implements AutoCloseable {
         }
 
         HttpResponse response = httpRequestHandler.handleRequest(request);
-        String httpVersion = response.getHttpVersion();
-        Integer statusCode = response.getStatusCode();
-        String reasonPhrase = response.getReasonPhase();
-
-        Map<String, Object> responseHeader = response.getMessageHeader();
-        try (InputStream messageBodyInputStream = response.getMessageBody()) {
-
-            HttpResponseWriter writer =
-                new HttpResponseWriter(client.getOutputStream());
-
-            //ステータスライン
-            writer.writeStatusLine(httpVersion, statusCode, reasonPhrase);
-
-            //レスポンスヘッダ
-            DateFormat df =
-                new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
-            df.setTimeZone(TimeZone.getTimeZone("GMT"));
-
-            LinkedHashMap<String, Object> header = new LinkedHashMap<>();
-
-            //general-header
-            header.put("Connection", "close");
-            header.put("Date", df.format(new Date()));
-
-            //response-header
-            header.put("Server", "SimpleHttpServer/0.1");
-
-            header.putAll(responseHeader);
-
-            //entity-header
-            ByteArrayOutputStream messageBodyOutputStream =
-                new ByteArrayOutputStream();
-            byte[] b = new byte[8192];
-            int i;
-            boolean chunked = false;
-            while (-1 != (i = messageBodyInputStream.read(b, 0, b.length))) {
-                messageBodyOutputStream.write(b, 0, i);
-
-                if (messageBodyOutputStream.size() > 10000) { //10KB
-                    chunked = true;
-                    break;
-                }
-            }
-            if (chunked) {
-                header.put("Transfer-Encoding", "chunked");
-                writer.writeResponseHeader(header);
-
-                byte[] chunk = messageBodyOutputStream.toByteArray();
-                writer.writeChunk(chunk, 0, chunk.length);
-
-                while (-1 != (i =
-                    messageBodyInputStream.read(chunk, 0, chunk.length))) {
-                    writer.writeChunk(chunk, 0, i);
-                }
-                writer.writeLastChunk();
-
-            } else {
-                byte[] messageBody = messageBodyOutputStream.toByteArray();
-                header.put("Content-Length", messageBody.length);
-                writer.writeResponseHeader(header);
-
-                //メッセージボディ
-                writer.writeResponseBody(messageBody);
-            }
-        }
+        HttpResponseWriter writer =
+            new HttpResponseWriter(client.getOutputStream());
+        writer.write(response);
     }
 }

@@ -1,13 +1,18 @@
 package httpserver;
 
+import static java.lang.annotation.ElementType.*;
+import static java.lang.annotation.RetentionPolicy.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+import static org.junit.internal.matchers.IsCollectionContaining.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.DateFormat;
@@ -24,6 +29,7 @@ import org.junit.runners.model.Statement;
 public class HttpServerTest {
 
     @Test
+    @HandlerWith(MockHttpRequestHandler.class)
     public void GETリクエストでHelloWorld() throws Exception {
         URL url = new URL("http://localhost:8080/hello.txt");
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -35,9 +41,42 @@ public class HttpServerTest {
         System.out.println(con.getHeaderFields());
         assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
 
+        assertThat(con.getContentLength(), is(13));
+        assertThat(
+            con.getHeaderFields().keySet(),
+            not(hasItem("Transfer-Encoding")));
+
         try (InputStream in = con.getInputStream()) {
             String response = readAll(in);
             assertThat(response, is("Hello, world!"));
+        }
+    }
+
+    @Test
+    @HandlerWith(ChunkedResponse.class)
+    public void チャンク転送() throws Exception {
+        URL url = new URL("http://localhost:8080/hello.txt");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+
+        int statusCode = con.getResponseCode();
+        assertThat(statusCode, is(200));
+
+        System.out.println(con.getHeaderFields());
+        assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
+
+        assertThat(
+            con.getHeaderFields().keySet(),
+            not(hasItem("Content-Length")));
+        assertThat(con.getHeaderField("Transfer-Encoding"), is("chunked"));
+
+        try (InputStream in = con.getInputStream()) {
+            String response = readAll(in);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 30000; i++) {
+                sb.append('*');
+            }
+            assertThat(response, is(sb.toString()));
         }
     }
 
@@ -48,15 +87,17 @@ public class HttpServerTest {
     public TestRule serverController = new TestRule() {
 
         @Override
-        public Statement apply(final Statement base, Description description) {
+        public Statement apply(final Statement base,
+                final Description description) {
             return new Statement() {
 
                 @Override
                 public void evaluate() throws Throwable {
                     try (HttpServer server =
-                        new HttpServerStarter(
-                            new MockHttpRequestHandler(),
-                            8080).start()) {
+                        new HttpServerStarter(description
+                            .getAnnotation(HandlerWith.class)
+                            .value()
+                            .newInstance(), 8080).start()) {
                         base.evaluate();
                     }
                 }
@@ -93,11 +134,32 @@ public class HttpServerTest {
             response.getMessageHeader().put(
                 "Last-Modified",
                 df.format(new Date()));
-            response.setMessageBody(new ByteArrayInputStream("Hello, world!"
+            response.setMessageBody(new ByteArrayInputStream(getMessageBody()
                 .getBytes()));
             return response;
         }
 
+        protected String getMessageBody() {
+            return "Hello, world!";
+        }
     }
 
+    public static class ChunkedResponse extends MockHttpRequestHandler {
+
+        @Override
+        protected String getMessageBody() {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 30000; i++) {
+                sb.append('*');
+            }
+            return sb.toString();
+        }
+    }
+
+    @Retention(RUNTIME)
+    @Target(METHOD)
+    public @interface HandlerWith {
+
+        Class<? extends HttpRequestHandler> value();
+    }
 }

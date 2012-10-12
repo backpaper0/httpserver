@@ -42,4 +42,20 @@ public class HttpResponseWriter {
         out.write(messageBody);
         out.flush();
     }
+
+    public void writeChunk(byte[] chunk, int offset, int length)
+            throws IOException {
+        out.write(Integer.toHexString(length).getBytes());
+        out.write(CRLF);
+        out.write(chunk, offset, length);
+        out.write(CRLF);
+        out.flush();
+    }
+
+    public void writeLastChunk() throws IOException {
+        out.write("0".getBytes());
+        out.write(CRLF);
+        out.write(CRLF);
+        out.flush();
+    }
 }

@@ -114,17 +114,36 @@ public class HttpServer implements AutoCloseable {
                 new ByteArrayOutputStream();
             byte[] b = new byte[8192];
             int i;
+            boolean chunked = false;
             while (-1 != (i = messageBodyInputStream.read(b, 0, b.length))) {
                 messageBodyOutputStream.write(b, 0, i);
+
+                if (messageBodyOutputStream.size() > 10000) { //10KB
+                    chunked = true;
+                    break;
+                }
             }
-            byte[] messageBody = messageBodyOutputStream.toByteArray();
-            header.put("Content-Length", messageBody.length);
+            if (chunked) {
+                header.put("Transfer-Encoding", "chunked");
+                writer.writeResponseHeader(header);
 
-            writer.writeResponseHeader(header);
+                byte[] chunk = messageBodyOutputStream.toByteArray();
+                writer.writeChunk(chunk, 0, chunk.length);
 
-            //メッセージボディ
-            writer.writeResponseBody(messageBody);
+                while (-1 != (i =
+                    messageBodyInputStream.read(chunk, 0, chunk.length))) {
+                    writer.writeChunk(chunk, 0, i);
+                }
+                writer.writeLastChunk();
+
+            } else {
+                byte[] messageBody = messageBodyOutputStream.toByteArray();
+                header.put("Content-Length", messageBody.length);
+                writer.writeResponseHeader(header);
+
+                //メッセージボディ
+                writer.writeResponseBody(messageBody);
+            }
         }
     }
-
 }

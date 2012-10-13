@@ -177,25 +177,29 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
                     break;
                 }
             }
+
+            byte[] messageBody = messageBodyOutputStream.toByteArray();
             if (chunked) {
                 header.put("Transfer-Encoding", "chunked");
-                writeResponseHeader(header.entrySet());
 
-                byte[] chunk = messageBodyOutputStream.toByteArray();
+            } else {
+                header.put("Content-Length", messageBody.length);
+            }
+
+            writeResponseHeader(header.entrySet());
+
+            if (chunked) {
+                byte[] chunk = messageBody;
                 writeChunk(chunk, 0, chunk.length);
 
                 while (-1 != (i =
                     messageBodyInputStream.read(chunk, 0, chunk.length))) {
                     writeChunk(chunk, 0, i);
                 }
+
                 writeLastChunk();
 
             } else {
-                byte[] messageBody = messageBodyOutputStream.toByteArray();
-                header.put("Content-Length", messageBody.length);
-                writeResponseHeader(header.entrySet());
-
-                //メッセージボディ
                 writeResponseBody(messageBody);
             }
         }

@@ -5,6 +5,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 
 import org.junit.Test;
 
@@ -74,9 +75,9 @@ public class HttpRequestReaderTest {
         HttpRequestReader reader = new HttpRequestReader(in);
 
         int contentLength = 5;
-        byte[] entityBody = reader.readEntityBody(contentLength);
+        InputStream entityBody = reader.readEntityBody(contentLength);
 
-        assertThat(entityBody, is(array("12345".getBytes())));
+        assertThat(entityBody, is(inputStream("12345")));
     }
 
     @Test
@@ -93,9 +94,9 @@ public class HttpRequestReaderTest {
         HttpRequestReader reader = new HttpRequestReader(in);
 
         int contentLength = 5;
-        byte[] entityBody = reader.readEntityBody(contentLength);
+        InputStream entityBody = reader.readEntityBody(contentLength);
 
-        assertThat(entityBody, is(array("12345".getBytes())));
+        assertThat(entityBody, is(inputStream("12345")));
     }
 
     @Test
@@ -119,9 +120,7 @@ public class HttpRequestReaderTest {
         byte[] b = testData.getBytes();
         ByteArrayInputStream in = new ByteArrayInputStream(b);
         HttpRequestReader reader = new HttpRequestReader(in);
-        byte[] messageBody = reader.readChunk();
-        assertThat(
-            messageBody,
-            is(array("Hello, world! Hello, world!".getBytes())));
+        InputStream messageBody = reader.readChunk();
+        assertThat(messageBody, is(inputStream("Hello, world! Hello, world!")));
     }
 }

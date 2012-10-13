@@ -1,5 +1,6 @@
 package httpserver;
 
+import java.io.InputStream;
 import java.util.Map;
 
 public class HttpRequest {
@@ -8,7 +9,7 @@ public class HttpRequest {
 
     private Map<String, String> requestHeader;
 
-    private byte[] requestEntity;
+    private InputStream requestEntity;
 
     public String[] getRequestLine() {
         return requestLine;
@@ -26,11 +27,11 @@ public class HttpRequest {
         this.requestHeader = requestHeader;
     }
 
-    public byte[] getRequestEntity() {
+    public InputStream getRequestEntity() {
         return requestEntity;
     }
 
-    public void setRequestEntity(byte[] requestEntity) {
+    public void setRequestEntity(InputStream requestEntity) {
         this.requestEntity = requestEntity;
     }
 

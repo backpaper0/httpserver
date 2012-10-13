@@ -1,5 +1,6 @@
 package httpserver;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -157,7 +158,7 @@ public class HttpRequestReader {
         throw new IllegalStateException();
     }
 
-    public byte[] readEntityBody(int contentLength) throws IOException {
+    public InputStream readEntityBody(int contentLength) throws IOException {
         byte[] entityBody = new byte[contentLength];
         int total = 0;
         int readSize;
@@ -165,7 +166,7 @@ public class HttpRequestReader {
             in.read(entityBody, total, contentLength - total))) {
             total += readSize;
             if (total == contentLength) {
-                return entityBody;
+                return new ByteArrayInputStream(entityBody);
             }
         }
         throw new IllegalStateException();
@@ -193,7 +194,7 @@ public class HttpRequestReader {
         return request;
     }
 
-    byte[] readChunk() throws IOException {
+    InputStream readChunk() throws IOException {
         int b;
         ByteArrayOutputStream chunk = new ByteArrayOutputStream();
         while (-1 != (b = in.read())) {
@@ -231,7 +232,7 @@ public class HttpRequestReader {
                 if (b != LF) {
                     throw new IllegalArgumentException();
                 }
-                return chunk.toByteArray();
+                return new ByteArrayInputStream(chunk.toByteArray());
             }
         }
         throw new IllegalArgumentException();

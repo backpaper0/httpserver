@@ -149,25 +149,21 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
         Integer statusCode = response.getStatusCode();
         String reasonPhrase = response.getReasonPhase();
 
+        //ステータスライン
+        writeStatusLine(statusCode, reasonPhrase);
+
+        //レスポンスヘッダ
+        Map<String, Object> header = new HashMap<>(response.getMessageHeader());
+
+        header.put("Connection", "close");
+
+        DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
+        df.setTimeZone(TimeZone.getTimeZone("GMT"));
+        header.put("Date", df.format(new Date()));
+
+        header.put("Server", "SimpleHttpServer/0.1");
+
         try (InputStream messageBodyInputStream = response.getMessageBody()) {
-
-            //ステータスライン
-            writeStatusLine(statusCode, reasonPhrase);
-
-            //レスポンスヘッダ
-            DateFormat df =
-                new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
-            df.setTimeZone(TimeZone.getTimeZone("GMT"));
-
-            Map<String, Object> header = new HashMap<>();
-
-            header.put("Connection", "close");
-            header.put("Date", df.format(new Date()));
-
-            header.put("Server", "SimpleHttpServer/0.1");
-
-            header.putAll(response.getMessageHeader());
-
             ByteArrayOutputStream messageBodyOutputStream =
                 new ByteArrayOutputStream();
             byte[] b = new byte[8192];

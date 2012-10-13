@@ -38,7 +38,7 @@ public class HttpServerTest {
         int statusCode = con.getResponseCode();
         assertThat(statusCode, is(200));
 
-        System.out.println(con.getHeaderFields());
+        System.out.println("[Response header] " + con.getHeaderFields());
         assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
 
         assertThat(con.getContentLength(), is(13));
@@ -62,7 +62,7 @@ public class HttpServerTest {
         int statusCode = con.getResponseCode();
         assertThat(statusCode, is(200));
 
-        System.out.println(con.getHeaderFields());
+        System.out.println("[Response header] " + con.getHeaderFields());
         assertThat(con.getContentType(), is("text/plain; charset=UTF-8"));
 
         assertThat(

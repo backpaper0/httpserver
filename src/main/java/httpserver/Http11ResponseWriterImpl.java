@@ -6,8 +6,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TimeZone;
@@ -15,6 +21,77 @@ import java.util.TimeZone;
 public class Http11ResponseWriterImpl implements HttpResponseWriter {
 
     private static final byte[] CRLF = "\r\n".getBytes();
+
+    private static final List<String> HEADER_FIELDS = Arrays.asList(
+    //general-header
+        "cache-control",
+        "connection",
+        "date",
+        "pragma",
+        "trailer",
+        "transfer-encoding",
+        "upgrade",
+        "via",
+        "warning",
+        //        //request-header
+        //        "accept",
+        //        "accept-charset",
+        //        "accept-encoding",
+        //        "accept-language",
+        //        "authorization",
+        //        "expect",
+        //        "from",
+        //        "host",
+        //        "if-match",
+        //        "if-modified-since",
+        //        "if-none-match",
+        //        "if-range",
+        //        "if-unmodified-since",
+        //        "max-forwards",
+        //        "proxy-authorization",
+        //        "range",
+        //        "referer",
+        //        "te",
+        //        "user-agent",
+        //response-header
+        "accept-ranges",
+        "age",
+        "etag",
+        "location",
+        "proxy-authenticate",
+        "retry-after",
+        "server",
+        "vary",
+        "www-authenticate",
+        //entity-header
+        "allow",
+        "content-encoding",
+        "content-language",
+        "content-length",
+        "content-location",
+        "content-md5",
+        "content-range",
+        "content-type",
+        "expires",
+        "last-modified");
+
+    private static final Comparator<Entry<String, Object>> HEADER_COMPARATOR =
+        new Comparator<Map.Entry<String, Object>>() {
+
+            @Override
+            public int compare(Entry<String, Object> o1,
+                    Entry<String, Object> o2) {
+                int x = HEADER_FIELDS.indexOf(o1.getKey().toLowerCase());
+                if (x == -1) {
+                    x = Integer.MAX_VALUE;
+                }
+                int y = HEADER_FIELDS.indexOf(o2.getKey().toLowerCase());
+                if (y == -1) {
+                    y = Integer.MAX_VALUE;
+                }
+                return Integer.compare(x, y);
+            }
+        };
 
     private final OutputStream out;
 
@@ -32,9 +109,11 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
         out.flush();
     }
 
-    public void writeResponseHeader(LinkedHashMap<String, Object> header)
+    public void writeResponseHeader(Collection<Entry<String, Object>> header)
             throws IOException {
-        for (Entry<String, Object> field : header.entrySet()) {
+        List<Entry<String, Object>> sortedHeader = new ArrayList<>(header);
+        Collections.sort(sortedHeader, HEADER_COMPARATOR);
+        for (Entry<String, Object> field : sortedHeader) {
             out.write(field.getKey().getBytes());
             out.write(": ".getBytes());
             out.write(field.getValue().toString().getBytes());
@@ -70,7 +149,6 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
         Integer statusCode = response.getStatusCode();
         String reasonPhrase = response.getReasonPhase();
 
-        Map<String, Object> responseHeader = response.getMessageHeader();
         try (InputStream messageBodyInputStream = response.getMessageBody()) {
 
             //ステータスライン
@@ -81,18 +159,15 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
                 new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz");
             df.setTimeZone(TimeZone.getTimeZone("GMT"));
 
-            LinkedHashMap<String, Object> header = new LinkedHashMap<>();
+            Map<String, Object> header = new HashMap<>();
 
-            //general-header
             header.put("Connection", "close");
             header.put("Date", df.format(new Date()));
 
-            //response-header
             header.put("Server", "SimpleHttpServer/0.1");
 
-            header.putAll(responseHeader);
+            header.putAll(response.getMessageHeader());
 
-            //entity-header
             ByteArrayOutputStream messageBodyOutputStream =
                 new ByteArrayOutputStream();
             byte[] b = new byte[8192];
@@ -108,7 +183,7 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
             }
             if (chunked) {
                 header.put("Transfer-Encoding", "chunked");
-                writeResponseHeader(header);
+                writeResponseHeader(header.entrySet());
 
                 byte[] chunk = messageBodyOutputStream.toByteArray();
                 writeChunk(chunk, 0, chunk.length);
@@ -122,7 +197,7 @@ public class Http11ResponseWriterImpl implements HttpResponseWriter {
             } else {
                 byte[] messageBody = messageBodyOutputStream.toByteArray();
                 header.put("Content-Length", messageBody.length);
-                writeResponseHeader(header);
+                writeResponseHeader(header.entrySet());
 
                 //メッセージボディ
                 writeResponseBody(messageBody);

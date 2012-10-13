@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -167,5 +168,22 @@ public class HttpRequestReader {
             }
         }
         throw new IllegalStateException();
+    }
+
+    public HttpRequest read() throws IOException {
+        HttpRequest request = new HttpRequest();
+        request.setRequestLine(readRequestLine());
+        System.out.println("[Request Line] "
+            + Arrays.toString(request.getRequestLine()));
+        request.setRequestHeader(readRequestHeader());
+        System.out.println("[Request header] " + request.getRequestHeader());
+
+        if (request.getRequestHeader().containsKey("content-length")) {
+            int contentLength =
+                Integer.parseInt(request.getRequestHeader().get(
+                    "content-length"));
+            request.setRequestEntity(readEntityBody(contentLength));
+        }
+        return request;
     }
 }

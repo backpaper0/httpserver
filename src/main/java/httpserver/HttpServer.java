@@ -3,7 +3,6 @@ package httpserver;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,22 +50,9 @@ public class HttpServer implements AutoCloseable {
 
     private void handleClientSocket(Socket client) throws IOException {
 
-        HttpRequest request = new HttpRequest();
         HttpRequestReader reader =
             new HttpRequestReader(client.getInputStream());
-
-        request.setRequestLine(reader.readRequestLine());
-        System.out.println("[Request Line] "
-            + Arrays.toString(request.getRequestLine()));
-        request.setRequestHeader(reader.readRequestHeader());
-        System.out.println("[Request header] " + request.getRequestHeader());
-
-        if (request.getRequestHeader().containsKey("content-length")) {
-            int contentLength =
-                Integer.parseInt(request.getRequestHeader().get(
-                    "content-length"));
-            request.setRequestEntity(reader.readEntityBody(contentLength));
-        }
+        HttpRequest request = reader.read();
 
         HttpResponse response = httpRequestHandler.handleRequest(request);
         HttpResponseWriter writer =

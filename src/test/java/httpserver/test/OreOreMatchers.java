@@ -24,7 +24,7 @@ public class OreOreMatchers {
 
         @Override
         public void describeTo(Description description) {
-            description.appendText(Arrays.toString(expected));
+            description.appendValue(expected);
         }
 
         @Override

@@ -7,6 +7,7 @@ import java.io.PushbackInputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class HttpRequestReader {
 
@@ -178,12 +179,61 @@ public class HttpRequestReader {
         request.setRequestHeader(readRequestHeader());
         System.out.println("[Request header] " + request.getRequestHeader());
 
-        if (request.getRequestHeader().containsKey("content-length")) {
+        if (Objects.equals(
+            request.getRequestHeader().get("transfer-encoding"),
+            "chunked")) {
+            request.setRequestEntity(readChunk());
+
+        } else if (request.getRequestHeader().containsKey("content-length")) {
             int contentLength =
                 Integer.parseInt(request.getRequestHeader().get(
                     "content-length"));
             request.setRequestEntity(readEntityBody(contentLength));
         }
         return request;
+    }
+
+    byte[] readChunk() throws IOException {
+        int b;
+        ByteArrayOutputStream chunk = new ByteArrayOutputStream();
+        while (-1 != (b = in.read())) {
+            in.unread(b);
+            ByteArrayOutputStream chunkSize = new ByteArrayOutputStream();
+            while (-1 != (b = in.read())) {
+                if (b == CR) {
+                    b = in.read();
+                }
+                if (b == LF) {
+                    break;
+                }
+                chunkSize.write(b);
+            }
+            byte[] bs = new byte[8192];
+            int i;
+            int size = Integer.parseInt(chunkSize.toString(), 16);
+            if (size != 0) {
+                while (size > 0 && -1 != (i = in.read(bs, 0, size))) {
+                    chunk.write(bs, 0, i);
+                    size -= i;
+                }
+                b = in.read();
+                if (b == CR) {
+                    b = in.read();
+                }
+                if (b != LF) {
+                    throw new IllegalArgumentException();
+                }
+            } else {
+                b = in.read();
+                if (b == CR) {
+                    b = in.read();
+                }
+                if (b != LF) {
+                    throw new IllegalArgumentException();
+                }
+                return chunk.toByteArray();
+            }
+        }
+        throw new IllegalArgumentException();
     }
 }

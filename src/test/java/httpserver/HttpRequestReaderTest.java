@@ -97,4 +97,31 @@ public class HttpRequestReaderTest {
 
         assertThat(entityBody, is(array("12345".getBytes())));
     }
+
+    @Test
+    public void チャンクを読む() throws Exception {
+        String testData =
+            Integer.toHexString(13)
+                + CRLF
+                + "Hello, world!"
+                + CRLF
+                + Integer.toHexString(1)
+                + CRLF
+                + " "
+                + CRLF
+                + Integer.toHexString(13)
+                + CRLF
+                + "Hello, world!"
+                + CRLF
+                + "0"
+                + CRLF
+                + CRLF;
+        byte[] b = testData.getBytes();
+        ByteArrayInputStream in = new ByteArrayInputStream(b);
+        HttpRequestReader reader = new HttpRequestReader(in);
+        byte[] messageBody = reader.readChunk();
+        assertThat(
+            messageBody,
+            is(array("Hello, world! Hello, world!".getBytes())));
+    }
 }

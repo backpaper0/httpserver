@@ -4,7 +4,6 @@ import static java.lang.annotation.ElementType.*;
 import static java.lang.annotation.RetentionPolicy.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
-import static org.junit.internal.matchers.IsCollectionContaining.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

@@ -1,9 +1,22 @@
+ext {
+    junitVersion = '4.12'
+    assertjVersion = '3.3.0'
+}
+
 apply plugin: 'java'
+apply plugin: 'eclipse'
+
+tasks.withType(JavaCompile) {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+    options.encoding = 'UTF-8'
+}
 
 repositories {
-  mavenCentral()
+    jcenter()
 }
 
 dependencies {
-  testCompile 'junit:junit:4.11'
+    testCompile "junit:junit:${junitVersion}"
+    testCompile "org.assertj:assertj-core:${assertjVersion}"
 }

@@ -1,62 +1,93 @@
 package httpserver;
 
-import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
 
-public class HttpServer implements AutoCloseable {
+public class HttpServer {
+    String host;
+    int port;
+    HttpHandler handler;
 
-    private final ServerSocket server;
-
-    private final ExecutorService executor;
-
-    private final HttpRequestHandler httpRequestHandler;
-
-    public HttpServer(HttpRequestHandler httpRequestHandler, int port)
-            throws IOException {
-        this.server = new ServerSocket(port);
-        this.httpRequestHandler = httpRequestHandler;
-        this.executor = Executors.newSingleThreadExecutor();
-        this.executor.submit(new Callable<Void>() {
-
-            @Override
-            public Void call() throws Exception {
-                process();
-                return null;
-            }
-        });
-        System.out.println("[Server started]");
+    public HttpServer(String host, int port, HttpHandler handler) {
+        this.host = host;
+        this.port = port;
+        this.handler = handler;
     }
 
-    @Override
-    public void close() throws IOException {
-        System.out.println("[Server closing]");
-        server.close();
-        executor.shutdownNow();
-    }
-
-    private void process() throws IOException {
-        while (Thread.currentThread().isInterrupted() == false
-            && server.isClosed() == false) {
-
-            try (Socket client = server.accept()) {
-                handleClientSocket(client);
+    public void start() throws Exception {
+        try (Selector sel = Selector.open(); ServerSocketChannel ssc = ServerSocketChannel.open()) {
+            ssc.configureBlocking(false);
+            ssc.socket().setReuseAddress(true);
+            ssc.bind(new InetSocketAddress(host, port));
+            ssc.register(sel, SelectionKey.OP_ACCEPT, new AcceptHandler());
+            while (sel.select() > 0) {
+                for (Iterator<SelectionKey> it = sel.selectedKeys().iterator(); it.hasNext();) {
+                    SelectionKey key = it.next();
+                    it.remove();
+                    Handler h = (Handler) key.attachment();
+                    h.handle(key);
+                }
             }
         }
     }
 
-    private void handleClientSocket(Socket client) throws IOException {
+    interface Handler {
 
-        HttpRequestReader reader =
-            new HttpRequestReader(client.getInputStream());
-        HttpRequest request = reader.read();
+        void handle(SelectionKey key) throws Exception;
+    }
 
-        HttpResponse response = httpRequestHandler.handleRequest(request);
-        HttpResponseWriter writer =
-            new Http11ResponseWriterImpl(client.getOutputStream());
-        writer.write(response);
+    class AcceptHandler implements Handler {
+
+        @Override
+        public void handle(SelectionKey key) throws Exception {
+            ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
+            SocketChannel sc = ssc.accept();
+            sc.configureBlocking(false);
+            sc.register(key.selector(), SelectionKey.OP_READ, new IOHandler());
+        }
+    }
+
+    class IOHandler implements Handler {
+
+        HttpRequestParser parser = new HttpRequestParser();
+        private ByteBuffer buf;
+
+        @Override
+        public void handle(SelectionKey key) throws Exception {
+            SocketChannel sc = (SocketChannel) key.channel();
+            int i = -1;
+            if (key.isReadable()) {
+                ByteBuffer b = ByteBuffer.allocate(5);
+                i = sc.read(b);
+                if (i > -1) {
+                    b.flip();
+                    boolean parsed = parser.parse(b);
+                    if (parsed) {
+                        HttpRequest request = parser.build();
+                        HttpResponse response = handler.handle(request);
+                        HttpResponseFormatter formatter = new HttpResponseFormatter();
+                        buf = formatter.format(response);
+                        if ((key.interestOps() & SelectionKey.OP_WRITE) != SelectionKey.OP_WRITE) {
+                            key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
+                        }
+                    }
+                } else {
+                    //key.cancel();
+                    key.interestOps(key.interestOps() ^ SelectionKey.OP_READ);
+                }
+            }
+            if (key.isWritable()) {
+                sc.write(buf);
+                if (buf.hasRemaining() == false) {
+                    //key.cancel();
+                    key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
+                }
+            }
+        }
     }
 }

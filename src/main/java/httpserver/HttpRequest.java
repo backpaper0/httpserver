@@ -1,38 +1,25 @@
 package httpserver;
 
-import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class HttpRequest {
+    public String method;
+    public String requestTarget;
+    public String httpVersion;
+    public Map<String, List<String>> headers = new HashMap<>();
+    public int contentLength = -1;
+    public ByteBuffer entity;
 
-    private String[] requestLine;
-
-    private Map<String, String> requestHeader;
-
-    private InputStream requestEntity;
-
-    public String[] getRequestLine() {
-        return requestLine;
+    public HttpRequest(String method, String requestTarget, String httpVersion,
+            Map<String, List<String>> headers, int contentLength, ByteBuffer entity) {
+        this.method = method;
+        this.requestTarget = requestTarget;
+        this.httpVersion = httpVersion;
+        this.headers = headers;
+        this.contentLength = contentLength;
+        this.entity = entity;
     }
-
-    public void setRequestLine(String[] requestLine) {
-        this.requestLine = requestLine;
-    }
-
-    public Map<String, String> getRequestHeader() {
-        return requestHeader;
-    }
-
-    public void setRequestHeader(Map<String, String> requestHeader) {
-        this.requestHeader = requestHeader;
-    }
-
-    public InputStream getRequestEntity() {
-        return requestEntity;
-    }
-
-    public void setRequestEntity(InputStream requestEntity) {
-        this.requestEntity = requestEntity;
-    }
-
 }

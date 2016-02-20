@@ -1,49 +1,21 @@
 package httpserver;
 
-import java.io.InputStream;
-import java.util.LinkedHashMap;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class HttpResponse {
+    public int statusCode = -1;
+    public String reasonPhrase;
+    public Map<String, List<String>> headers = new HashMap<>();
+    public ByteBuffer entity;
 
-    private int statusCode;
-
-    private String reasonPhase;
-
-    private Map<String, Object> messageHeader = new LinkedHashMap<>();;
-
-    private InputStream messageBody;
-
-    public int getStatusCode() {
-        return statusCode;
-    }
-
-    public void setStatusCode(int statusCode) {
+    public HttpResponse(int statusCode, String reasonPhrase, Map<String, List<String>> headers,
+            ByteBuffer entity) {
         this.statusCode = statusCode;
+        this.reasonPhrase = reasonPhrase;
+        this.headers = headers;
+        this.entity = entity;
     }
-
-    public String getReasonPhase() {
-        return reasonPhase;
-    }
-
-    public void setReasonPhase(String reasonPhase) {
-        this.reasonPhase = reasonPhase;
-    }
-
-    public Map<String, Object> getMessageHeader() {
-        return messageHeader;
-    }
-
-    public void setMessageHeader(Map<String, Object> messageHeader) {
-        this.messageHeader = messageHeader;
-    }
-
-    public InputStream getMessageBody() {
-        return messageBody;
-    }
-
-    public void setMessageBody(InputStream messageBody) {
-        this.messageBody = messageBody;
-    }
-
 }

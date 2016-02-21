@@ -1,6 +1,7 @@
 package httpserver;
 
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -22,7 +23,7 @@ public class HttpServer {
     public void start() throws Exception {
         try (Selector sel = Selector.open(); ServerSocketChannel ssc = ServerSocketChannel.open()) {
             ssc.configureBlocking(false);
-            ssc.socket().setReuseAddress(true);
+            ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             ssc.bind(new InetSocketAddress(host, port));
             ssc.register(sel, SelectionKey.OP_ACCEPT, new AcceptHandler());
             while (sel.select() > 0) {
@@ -47,6 +48,8 @@ public class HttpServer {
         public void handle(SelectionKey key) throws Exception {
             ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
             SocketChannel sc = ssc.accept();
+            sc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+            sc.socket().setReuseAddress(true);
             sc.configureBlocking(false);
             sc.register(key.selector(), SelectionKey.OP_READ, new IOHandler());
         }

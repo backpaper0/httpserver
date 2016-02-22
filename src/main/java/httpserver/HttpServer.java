@@ -1,5 +1,7 @@
 package httpserver;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
@@ -7,33 +9,41 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.spi.AbstractSelectableChannel;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 public class HttpServer {
     String host;
     int port;
     HttpHandler handler;
+    Worker worker;
+    AtomicInteger counter = new AtomicInteger(0);
+    Worker[] workers;
 
     public HttpServer(String host, int port, HttpHandler handler) {
         this.host = host;
         this.port = port;
         this.handler = handler;
+        this.worker = new Worker();
+        this.workers = IntStream.range(0, Runtime.getRuntime().availableProcessors() - 1)
+                .mapToObj(i -> new Worker()).toArray(Worker[]::new);
     }
 
     public void start() throws Exception {
-        try (Selector sel = Selector.open(); ServerSocketChannel ssc = ServerSocketChannel.open()) {
+        Arrays.stream(workers).map(Thread::new).forEach(Thread::start);
+        try (ServerSocketChannel ssc = ServerSocketChannel.open()) {
             ssc.configureBlocking(false);
             ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             ssc.bind(new InetSocketAddress(host, port));
-            ssc.register(sel, SelectionKey.OP_ACCEPT, new AcceptHandler());
-            while (sel.select() > 0) {
-                for (Iterator<SelectionKey> it = sel.selectedKeys().iterator(); it.hasNext();) {
-                    SelectionKey key = it.next();
-                    it.remove();
-                    Handler h = (Handler) key.attachment();
-                    h.handle(key);
-                }
-            }
+            worker.register(ssc, SelectionKey.OP_ACCEPT, new AcceptHandler());
+            Thread t = new Thread(worker);
+            t.start();
+            t.join();
         }
     }
 
@@ -51,7 +61,8 @@ public class HttpServer {
             sc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             sc.socket().setReuseAddress(true);
             sc.configureBlocking(false);
-            sc.register(key.selector(), SelectionKey.OP_READ, new IOHandler());
+            workers[counter.getAndIncrement() % workers.length].register(sc, SelectionKey.OP_READ,
+                    new IOHandler());
         }
     }
 
@@ -91,6 +102,64 @@ public class HttpServer {
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
                 }
             }
+        }
+    }
+
+    class Worker implements Runnable {
+
+        final Selector selector;
+        final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+
+        public Worker() {
+            try {
+                selector = Selector.open();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    int count = selector.select();
+                    if (count > 0) {
+                        for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it
+                                .hasNext();) {
+                            SelectionKey key = it.next();
+                            it.remove();
+                            Handler h = (Handler) key.attachment();
+                            h.handle(key);
+                        }
+                    }
+                    Runnable task;
+                    while ((task = queue.poll()) != null) {
+                        task.run();
+                    }
+                }
+            } catch (Exception e) {
+                //TODO
+                e.printStackTrace();
+            } finally {
+                try {
+                    selector.close();
+                } catch (IOException e) {
+                    //TODO
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        public void register(AbstractSelectableChannel channel, int op, Handler handler) {
+            queue.add(() -> {
+                try {
+                    channel.register(selector, op, handler);
+                } catch (Exception e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            });
+            selector.wakeup();
         }
     }
 }

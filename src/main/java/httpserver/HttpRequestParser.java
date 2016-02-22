@@ -59,10 +59,6 @@ public class HttpRequestParser {
         return new String(bs);
     }
 
-    enum State {
-        METHOD, REQUEST_TARGET, HTTP_VERSION, HEADER_CHECK, HEADER_NAME, HEADER_INTERVAL, HEADER_VALUE, ENTITY;
-    }
-
     interface PartialParser {
         boolean parse(ByteBuffer in);
     }

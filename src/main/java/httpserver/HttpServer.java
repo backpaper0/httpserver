@@ -96,13 +96,7 @@ public class HttpServer {
                     boolean parsed = parser.parse(buf);
                     if (parsed) {
                         HttpRequest request = parser.build();
-                        HttpResponse response;
-                        try {
-                            response = handler.handle(request);
-                        } catch (Exception e) {
-                            logger.log(Level.SEVERE, "exception in handle request", e);
-                            response = createErrorResponse(e);
-                        }
+                        HttpResponse response = handle(request);
                         HttpResponseFormatter formatter = new HttpResponseFormatter();
                         responseEntity = formatter.format(response);
                         if ((key.interestOps() & SelectionKey.OP_WRITE) != SelectionKey.OP_WRITE) {
@@ -122,6 +116,15 @@ public class HttpServer {
                     //key.cancel();
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
                 }
+            }
+        }
+
+        private HttpResponse handle(HttpRequest request) {
+            try {
+                return handler.handle(request);
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "exception in handle request", e);
+                return createErrorResponse(e);
             }
         }
 

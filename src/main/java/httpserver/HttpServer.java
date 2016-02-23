@@ -41,7 +41,7 @@ public class HttpServer {
                 .mapToObj(i -> new Worker()).toArray(Worker[]::new);
     }
 
-    public void start() throws Exception {
+    public void start() throws IOException {
         Arrays.stream(workers).forEach(Thread::start);
         ServerSocketChannel ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);

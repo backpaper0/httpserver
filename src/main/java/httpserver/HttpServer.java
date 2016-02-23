@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class HttpServer {
@@ -33,7 +34,7 @@ public class HttpServer {
     private final HttpHandler handler;
     private final Worker worker;
     private final AtomicInteger counter = new AtomicInteger(0);
-    private final Worker[] workers;
+    private final List<Worker> workers;
 
     public HttpServer(String host, int port, HttpHandler handler) {
         this.host = host;
@@ -41,12 +42,12 @@ public class HttpServer {
         this.handler = handler;
         this.worker = new Worker();
         this.workers = IntStream.range(0, Runtime.getRuntime().availableProcessors() - 1)
-                .mapToObj(i -> new Worker()).toArray(Worker[]::new);
+                .mapToObj(i -> new Worker()).collect(Collectors.toList());
     }
 
     public void start() throws IOException {
         logger.info(() -> "start");
-        Arrays.stream(workers).forEach(Thread::start);
+        workers.forEach(Thread::start);
         ServerSocketChannel ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
         ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
@@ -55,12 +56,10 @@ public class HttpServer {
         worker.start();
     }
 
-    public void stop() throws IOException {
+    public void stop() {
         logger.info(() -> "stop");
         worker.shutdown();
-        for (Worker worker : workers) {
-            worker.shutdown();
-        }
+        workers.forEach(Worker::shutdown);
     }
 
     interface Handler {
@@ -76,16 +75,16 @@ public class HttpServer {
             SocketChannel sc = ssc.accept();
             sc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             sc.configureBlocking(false);
-            workers[counter.getAndIncrement() % workers.length].register(sc, SelectionKey.OP_READ,
-                    new IOHandler());
+            int index = counter.getAndIncrement() % workers.size();
+            workers.get(index).register(sc, SelectionKey.OP_READ, new IOHandler());
         }
     }
 
     class IOHandler implements Handler {
 
-        private HttpRequestParser parser = new HttpRequestParser();
+        private final HttpRequestParser parser = new HttpRequestParser();
+        private final ByteBuffer buf = ByteBuffer.allocate(8192);
         private ByteBuffer responseEntity;
-        private ByteBuffer buf = ByteBuffer.allocate(8192);
 
         @Override
         public void handle(SelectionKey key) throws IOException {
@@ -140,9 +139,9 @@ public class HttpServer {
 
     class Worker extends Thread {
 
-        final Selector selector;
-        final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
-        final AtomicBoolean running = new AtomicBoolean(true);
+        private final Selector selector;
+        private final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
+        private final AtomicBoolean running = new AtomicBoolean(true);
 
         public Worker() {
             try {

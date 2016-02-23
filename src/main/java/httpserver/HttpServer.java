@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
@@ -35,15 +36,19 @@ public class HttpServer {
     }
 
     public void start() throws Exception {
-        Arrays.stream(workers).map(Thread::new).forEach(Thread::start);
-        try (ServerSocketChannel ssc = ServerSocketChannel.open()) {
-            ssc.configureBlocking(false);
-            ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-            ssc.bind(new InetSocketAddress(host, port));
-            worker.register(ssc, SelectionKey.OP_ACCEPT, new AcceptHandler());
-            Thread t = new Thread(worker);
-            t.start();
-            t.join();
+        Arrays.stream(workers).forEach(Thread::start);
+        ServerSocketChannel ssc = ServerSocketChannel.open();
+        ssc.configureBlocking(false);
+        ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+        ssc.bind(new InetSocketAddress(host, port));
+        worker.register(ssc, SelectionKey.OP_ACCEPT, new AcceptHandler());
+        worker.start();
+    }
+
+    public void stop() throws IOException {
+        worker.shutdown();
+        for (Worker worker : workers) {
+            worker.shutdown();
         }
     }
 
@@ -105,10 +110,11 @@ public class HttpServer {
         }
     }
 
-    class Worker implements Runnable {
+    class Worker extends Thread {
 
         final Selector selector;
         final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+        final AtomicBoolean running = new AtomicBoolean(true);
 
         public Worker() {
             try {
@@ -121,7 +127,7 @@ public class HttpServer {
         @Override
         public void run() {
             try {
-                while (true) {
+                while (running.get()) {
                     int count = selector.select();
                     if (count > 0) {
                         for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it
@@ -139,7 +145,7 @@ public class HttpServer {
                 }
             } catch (Exception e) {
                 //TODO
-                e.printStackTrace();
+                new Exception(Thread.currentThread().getName(), e).printStackTrace();
             } finally {
                 try {
                     selector.close();
@@ -156,10 +162,17 @@ public class HttpServer {
                     channel.register(selector, op, handler);
                 } catch (Exception e) {
                     // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    new Exception(Thread.currentThread().getName(), e).printStackTrace();
                 }
             });
             selector.wakeup();
+        }
+
+        public void shutdown() throws IOException {
+            running.set(false);
+            for (SelectionKey key : selector.keys()) {
+                key.channel().close();
+            }
         }
     }
 }

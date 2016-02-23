@@ -13,6 +13,8 @@ public class EchoServer {
     public static void main(String[] args) throws Exception {
         HttpServer server = new HttpServer("0.0.0.0", 8080, EchoServer::handle);
         server.start();
+        System.in.read();
+        server.stop();
     }
 
     static HttpResponse handle(HttpRequest request) throws Exception {

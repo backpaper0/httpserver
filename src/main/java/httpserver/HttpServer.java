@@ -69,7 +69,6 @@ public class HttpServer {
             ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
             SocketChannel sc = ssc.accept();
             sc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-            sc.socket().setReuseAddress(true);
             sc.configureBlocking(false);
             workers[counter.getAndIncrement() % workers.length].register(sc, SelectionKey.OP_READ,
                     new IOHandler());

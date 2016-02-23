@@ -134,7 +134,7 @@ public class HttpServer {
     class Worker extends Thread {
 
         final Selector selector;
-        final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
+        final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
         final AtomicBoolean running = new AtomicBoolean(true);
 
         public Worker() {
@@ -159,9 +159,9 @@ public class HttpServer {
                             h.handle(key);
                         }
                     }
-                    Runnable task;
+                    IOAction task;
                     while ((task = queue.poll()) != null) {
-                        task.run();
+                        task.act();
                     }
                 }
             } catch (IOException e) {
@@ -178,14 +178,7 @@ public class HttpServer {
         }
 
         public void register(AbstractSelectableChannel channel, int op, Handler handler) {
-            queue.add(() -> {
-                try {
-                    channel.register(selector, op, handler);
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    new Exception(Thread.currentThread().getName(), e).printStackTrace();
-                }
-            });
+            queue.add(() -> channel.register(selector, op, handler));
             selector.wakeup();
         }
 
@@ -195,5 +188,10 @@ public class HttpServer {
                 key.channel().close();
             }
         }
+    }
+
+    @FunctionalInterface
+    interface IOAction {
+        void act() throws IOException;
     }
 }

@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 public class HttpResponseFormatter {
 
-    ByteBuffer buf = ByteBuffer.allocate(32);
+    private ByteBuffer buf = ByteBuffer.allocate(32);
 
     public ByteBuffer format(HttpResponse response) {
         Map<String, List<String>> headers = new HashMap<>();
@@ -48,7 +48,7 @@ public class HttpResponseFormatter {
         return buf;
     }
 
-    void put(ByteBuffer b) {
+    private void put(ByteBuffer b) {
         if ((buf.position() + b.limit() < buf.capacity()) == false) {
             ByteBuffer next = ByteBuffer
                     .allocate(Math.max(buf.capacity() * 2, buf.position() + b.limit()));
@@ -59,7 +59,7 @@ public class HttpResponseFormatter {
         buf.put(b);
     }
 
-    void put(String s) {
+    private void put(String s) {
         byte[] bs = s.getBytes();
         if ((buf.position() + bs.length < buf.capacity()) == false) {
             ByteBuffer next = ByteBuffer

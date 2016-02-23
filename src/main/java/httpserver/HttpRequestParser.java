@@ -8,15 +8,15 @@ import java.util.Map;
 
 public class HttpRequestParser {
 
-    ByteBuffer out = ByteBuffer.allocate(32);
-    String method;
-    String requestTarget;
-    String httpVersion;
-    String headerName;
-    Map<String, List<String>> headers = new HashMap<>();
-    int contentLength = -1;
-    ByteBuffer entity;
-    PartialParser parser = new MethodParser();
+    private ByteBuffer out = ByteBuffer.allocate(32);
+    private String method;
+    private String requestTarget;
+    private String httpVersion;
+    private String headerName;
+    private final Map<String, List<String>> headers = new HashMap<>();
+    private int contentLength = -1;
+    private ByteBuffer entity;
+    private PartialParser parser = new MethodParser();
 
     public boolean parse(ByteBuffer in) {
         while (in.hasRemaining()) {

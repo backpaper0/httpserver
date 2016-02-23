@@ -24,12 +24,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 public class HttpServer {
-    String host;
-    int port;
-    HttpHandler handler;
-    Worker worker;
-    AtomicInteger counter = new AtomicInteger(0);
-    Worker[] workers;
+
+    private final String host;
+    private final int port;
+    private final HttpHandler handler;
+    private final Worker worker;
+    private final AtomicInteger counter = new AtomicInteger(0);
+    private final Worker[] workers;
 
     public HttpServer(String host, int port, HttpHandler handler) {
         this.host = host;

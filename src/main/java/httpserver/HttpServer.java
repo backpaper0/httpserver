@@ -21,10 +21,13 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
 public class HttpServer {
 
+    private static final Logger logger = Logger.getLogger(HttpServer.class.getName());
     private final String host;
     private final int port;
     private final HttpHandler handler;
@@ -42,6 +45,7 @@ public class HttpServer {
     }
 
     public void start() throws IOException {
+        logger.info(() -> "start");
         Arrays.stream(workers).forEach(Thread::start);
         ServerSocketChannel ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
@@ -52,6 +56,7 @@ public class HttpServer {
     }
 
     public void stop() throws IOException {
+        logger.info(() -> "stop");
         worker.shutdown();
         for (Worker worker : workers) {
             worker.shutdown();
@@ -97,6 +102,7 @@ public class HttpServer {
                         try {
                             response = handler.handle(request);
                         } catch (Exception e) {
+                            logger.log(Level.SEVERE, "exception in handle request", e);
                             response = createErrorResponse(e);
                         }
                         HttpResponseFormatter formatter = new HttpResponseFormatter();
@@ -147,12 +153,13 @@ public class HttpServer {
 
         @Override
         public void run() {
+            logger.info(() -> getName() + " begin");
             try {
                 while (running.get()) {
                     int count = selector.select();
                     if (count > 0) {
-                        for (Iterator<SelectionKey> it = selector.selectedKeys().iterator(); it
-                                .hasNext();) {
+                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                        while (it.hasNext()) {
                             SelectionKey key = it.next();
                             it.remove();
                             Handler h = (Handler) key.attachment();
@@ -164,15 +171,17 @@ public class HttpServer {
                         task.act();
                     }
                 }
-            } catch (IOException e) {
-                //TODO
-                new Exception(Thread.currentThread().getName(), e).printStackTrace();
+                logger.info(() -> getName() + " end");
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "exception in run", e);
             } finally {
                 try {
+                    for (SelectionKey key : selector.keys()) {
+                        key.channel().close();
+                    }
                     selector.close();
                 } catch (IOException e) {
-                    //TODO
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, "exception in close", e);
                 }
             }
         }
@@ -182,10 +191,10 @@ public class HttpServer {
             selector.wakeup();
         }
 
-        public void shutdown() throws IOException {
+        public void shutdown() {
             running.set(false);
-            for (SelectionKey key : selector.keys()) {
-                key.channel().close();
+            if (selector.isOpen()) {
+                selector.wakeup();
             }
         }
     }

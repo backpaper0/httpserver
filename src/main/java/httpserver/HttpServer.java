@@ -59,13 +59,13 @@ public class HttpServer {
 
     interface Handler {
 
-        void handle(SelectionKey key) throws Exception;
+        void handle(SelectionKey key) throws IOException;
     }
 
     class AcceptHandler implements Handler {
 
         @Override
-        public void handle(SelectionKey key) throws Exception {
+        public void handle(SelectionKey key) throws IOException {
             ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
             SocketChannel sc = ssc.accept();
             sc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
@@ -82,7 +82,7 @@ public class HttpServer {
         private ByteBuffer buf;
 
         @Override
-        public void handle(SelectionKey key) throws Exception {
+        public void handle(SelectionKey key) throws IOException {
             SocketChannel sc = (SocketChannel) key.channel();
             int i = -1;
             if (key.isReadable()) {
@@ -164,7 +164,7 @@ public class HttpServer {
                         task.run();
                     }
                 }
-            } catch (Exception e) {
+            } catch (IOException e) {
                 //TODO
                 new Exception(Thread.currentThread().getName(), e).printStackTrace();
             } finally {
@@ -181,7 +181,7 @@ public class HttpServer {
             queue.add(() -> {
                 try {
                     channel.register(selector, op, handler);
-                } catch (Exception e) {
+                } catch (IOException e) {
                     // TODO Auto-generated catch block
                     new Exception(Thread.currentThread().getName(), e).printStackTrace();
                 }

@@ -1,6 +1,8 @@
 package httpserver;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
@@ -11,7 +13,10 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -88,7 +93,12 @@ public class HttpServer {
                     boolean parsed = parser.parse(b);
                     if (parsed) {
                         HttpRequest request = parser.build();
-                        HttpResponse response = handler.handle(request);
+                        HttpResponse response;
+                        try {
+                            response = handler.handle(request);
+                        } catch (Exception e) {
+                            response = createErrorResponse(e);
+                        }
                         HttpResponseFormatter formatter = new HttpResponseFormatter();
                         buf = formatter.format(response);
                         if ((key.interestOps() & SelectionKey.OP_WRITE) != SelectionKey.OP_WRITE) {
@@ -107,6 +117,17 @@ public class HttpServer {
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
                 }
             }
+        }
+
+        private HttpResponse createErrorResponse(Exception e) {
+            Map<String, List<String>> headers = new HashMap<>();
+            headers.put("Content-Type", Arrays.asList("text/plain"));
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (PrintStream out = new PrintStream(baos)) {
+                e.printStackTrace(out);
+            }
+            ByteBuffer entity = ByteBuffer.wrap(baos.toByteArray());
+            return new HttpResponse(500, "Internal Server Error", headers, entity);
         }
     }
 

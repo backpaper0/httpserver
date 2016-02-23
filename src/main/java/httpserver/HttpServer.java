@@ -83,19 +83,18 @@ public class HttpServer {
 
     class IOHandler implements Handler {
 
-        HttpRequestParser parser = new HttpRequestParser();
-        private ByteBuffer buf;
+        private HttpRequestParser parser = new HttpRequestParser();
+        private ByteBuffer responseEntity;
+        private ByteBuffer buf = ByteBuffer.allocate(8192);
 
         @Override
         public void handle(SelectionKey key) throws IOException {
             SocketChannel sc = (SocketChannel) key.channel();
-            int i = -1;
             if (key.isReadable()) {
-                ByteBuffer b = ByteBuffer.allocate(5);
-                i = sc.read(b);
-                if (i > -1) {
-                    b.flip();
-                    boolean parsed = parser.parse(b);
+                int i;
+                while ((i = sc.read(buf)) > 0) {
+                    buf.flip();
+                    boolean parsed = parser.parse(buf);
                     if (parsed) {
                         HttpRequest request = parser.build();
                         HttpResponse response;
@@ -106,19 +105,21 @@ public class HttpServer {
                             response = createErrorResponse(e);
                         }
                         HttpResponseFormatter formatter = new HttpResponseFormatter();
-                        buf = formatter.format(response);
+                        responseEntity = formatter.format(response);
                         if ((key.interestOps() & SelectionKey.OP_WRITE) != SelectionKey.OP_WRITE) {
                             key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
                         }
                     }
-                } else {
+                    buf.clear();
+                }
+                if (i < 0) {
                     //key.cancel();
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_READ);
                 }
             }
             if (key.isWritable()) {
-                sc.write(buf);
-                if (buf.hasRemaining() == false) {
+                sc.write(responseEntity);
+                if (responseEntity.hasRemaining() == false) {
                     //key.cancel();
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
                 }

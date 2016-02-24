@@ -13,6 +13,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -85,6 +86,7 @@ public class HttpServer {
         private final HttpRequestParser parser = new HttpRequestParser();
         private final ByteBuffer buf = ByteBuffer.allocate(8192);
         private ByteBuffer responseEntity;
+        private HttpRequest request;
 
         @Override
         public void handle(SelectionKey key) throws IOException {
@@ -95,7 +97,7 @@ public class HttpServer {
                     buf.flip();
                     boolean parsed = parser.parse(buf);
                     if (parsed) {
-                        HttpRequest request = parser.build();
+                        request = parser.build();
                         HttpResponse response = handle(request);
                         HttpResponseFormatter formatter = new HttpResponseFormatter();
                         responseEntity = formatter.format(response);
@@ -115,6 +117,13 @@ public class HttpServer {
                 if (responseEntity.hasRemaining() == false) {
                     //key.cancel();
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
+
+                    List<String> connection = request.headers.getOrDefault("Connection",
+                            Collections.emptyList());
+                    if (connection.contains("keep-alive") == false) {
+                        key.cancel();
+                        sc.close();
+                    }
                 }
             }
         }

@@ -32,34 +32,34 @@ public class HttpServer {
     private final String host;
     private final int port;
     private final HttpHandler handler;
-    private final Worker worker;
+    private final Worker acceptWorker;
     private final AtomicInteger counter = new AtomicInteger(0);
-    private final List<Worker> workers;
+    private final List<Worker> ioWorkers;
 
     public HttpServer(String host, int port, HttpHandler handler) {
         this.host = host;
         this.port = port;
         this.handler = handler;
-        this.worker = new Worker();
-        this.workers = IntStream.range(0, Runtime.getRuntime().availableProcessors() - 1)
+        this.acceptWorker = new Worker();
+        this.ioWorkers = IntStream.range(0, Runtime.getRuntime().availableProcessors() - 1)
                 .mapToObj(i -> new Worker()).collect(Collectors.toList());
     }
 
     public void start() throws IOException {
         logger.info(() -> "start");
-        worker.start();
-        workers.forEach(Thread::start);
+        acceptWorker.start();
+        ioWorkers.forEach(Thread::start);
         ServerSocketChannel ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
         ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
         ssc.bind(new InetSocketAddress(host, port));
-        worker.register(ssc, SelectionKey.OP_ACCEPT, new AcceptHandler());
+        acceptWorker.register(ssc, SelectionKey.OP_ACCEPT, new AcceptHandler());
     }
 
     public void stop() {
         logger.info(() -> "stop");
-        worker.shutdown();
-        workers.forEach(Worker::shutdown);
+        acceptWorker.shutdown();
+        ioWorkers.forEach(Worker::shutdown);
     }
 
     interface Handler {
@@ -75,8 +75,8 @@ public class HttpServer {
             SocketChannel sc = ssc.accept();
             sc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             sc.configureBlocking(false);
-            int index = counter.getAndIncrement() % workers.size();
-            workers.get(index).register(sc, SelectionKey.OP_READ, new IOHandler());
+            int index = counter.getAndIncrement() % ioWorkers.size();
+            ioWorkers.get(index).register(sc, SelectionKey.OP_READ, new IOHandler());
         }
     }
 

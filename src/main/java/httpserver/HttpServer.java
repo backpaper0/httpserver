@@ -109,14 +109,12 @@ public class HttpServer {
                     buf.clear();
                 }
                 if (i < 0) {
-                    //key.cancel();
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_READ);
                 }
             }
             if (key.isWritable()) {
                 sc.write(responseEntity);
                 if (responseEntity.hasRemaining() == false) {
-                    //key.cancel();
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
 
                     List<String> connection = request.headers.getOrDefault("Connection",

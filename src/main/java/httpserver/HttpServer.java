@@ -3,7 +3,6 @@ package httpserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
@@ -48,13 +47,13 @@ public class HttpServer {
 
     public void start() throws IOException {
         logger.info(() -> "start");
+        worker.start();
         workers.forEach(Thread::start);
         ServerSocketChannel ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
         ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
         ssc.bind(new InetSocketAddress(host, port));
         worker.register(ssc, SelectionKey.OP_ACCEPT, new AcceptHandler());
-        worker.start();
     }
 
     public void stop() {
@@ -150,22 +149,14 @@ public class HttpServer {
 
     class Worker extends Thread {
 
-        private final Selector selector;
+        private Selector selector;
         private final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
         private final AtomicBoolean running = new AtomicBoolean(true);
-
-        public Worker() {
-            try {
-                selector = Selector.open();
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
 
         @Override
         public void run() {
             logger.info(() -> getName() + " begin");
-            try {
+            try (Selector selector = this.selector = Selector.open()) {
                 while (running.get()) {
                     int count = selector.select();
                     if (count > 0) {
@@ -185,12 +176,6 @@ public class HttpServer {
                 logger.info(() -> getName() + " end");
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "exception in run", e);
-            } finally {
-                try {
-                    selector.close();
-                } catch (IOException e) {
-                    logger.log(Level.SEVERE, "exception in close", e);
-                }
             }
         }
 

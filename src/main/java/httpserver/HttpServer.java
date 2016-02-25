@@ -189,9 +189,6 @@ public class HttpServer {
                 logger.log(Level.SEVERE, "exception in run", e);
             } finally {
                 try {
-                    for (SelectionKey key : selector.keys()) {
-                        key.channel().close();
-                    }
                     selector.close();
                 } catch (IOException e) {
                     logger.log(Level.SEVERE, "exception in close", e);

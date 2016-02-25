@@ -83,7 +83,7 @@ public class HttpServer {
 
     class IOHandler implements Handler {
 
-        private final HttpRequestParser parser = new HttpRequestParser();
+        private HttpRequestParser parser = new HttpRequestParser();
         private final ByteBuffer buf = ByteBuffer.allocate(8192);
         private ByteBuffer responseEntity;
         private HttpRequest request;
@@ -98,6 +98,7 @@ public class HttpServer {
                     boolean parsed = parser.parse(buf);
                     if (parsed) {
                         request = parser.build();
+                        parser = new HttpRequestParser();
                         HttpResponse response = handle(request);
                         HttpResponseFormatter formatter = new HttpResponseFormatter();
                         responseEntity = formatter.format(response);

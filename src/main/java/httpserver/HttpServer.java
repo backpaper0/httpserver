@@ -11,6 +11,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelectableChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,8 +24,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class HttpServer {
 
@@ -36,13 +35,17 @@ public class HttpServer {
     private final AtomicInteger counter = new AtomicInteger(0);
     private final List<Worker> ioWorkers;
 
-    public HttpServer(String host, int port, HttpHandler handler) {
+    public HttpServer(String host, int port, HttpHandler handler) throws IOException {
         this.host = host;
         this.port = port;
         this.handler = handler;
-        this.acceptWorker = new Worker();
-        this.ioWorkers = IntStream.range(0, Runtime.getRuntime().availableProcessors() - 1)
-                .mapToObj(i -> new Worker()).collect(Collectors.toList());
+        this.acceptWorker = new Worker(Selector.open());
+        int size = Runtime.getRuntime().availableProcessors() - 1;
+        List<Worker> ioWorkers = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            ioWorkers.add(new Worker(Selector.open()));
+        }
+        this.ioWorkers = ioWorkers;
     }
 
     public void start() throws IOException {
@@ -149,14 +152,18 @@ public class HttpServer {
 
     class Worker extends Thread {
 
-        private Selector selector;
+        private final Selector selector;
         private final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
         private final AtomicBoolean running = new AtomicBoolean(true);
+
+        public Worker(Selector selector) {
+            this.selector = selector;
+        }
 
         @Override
         public void run() {
             logger.info(() -> getName() + " begin");
-            try (Selector selector = this.selector = Selector.open()) {
+            try {
                 while (running.get()) {
                     int count = selector.select();
                     if (count > 0) {
@@ -176,6 +183,12 @@ public class HttpServer {
                 logger.info(() -> getName() + " end");
             } catch (Exception e) {
                 logger.log(Level.SEVERE, "exception in run", e);
+            } finally {
+                try {
+                    selector.close();
+                } catch (IOException e) {
+                    logger.log(Level.SEVERE, "exception in close selector", e);
+                }
             }
         }
 

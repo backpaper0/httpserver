@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,12 +40,11 @@ public class HttpServer {
     public HttpServer(final String host, final int port, final HttpHandler handler) {
         this.host = host;
         this.port = port;
-        this.handler = handler;
+        this.handler = Objects.requireNonNull(handler);
         this.acceptWorker = new Worker(Selector::open);
         final int size = Runtime.getRuntime().availableProcessors() - 1;
-        final List<Worker> ioWorkers = IntStream.range(0, size)
+        this.ioWorkers = IntStream.range(0, size)
                 .mapToObj(i -> new Worker(Selector::open)).collect(Collectors.toList());
-        this.ioWorkers = ioWorkers;
     }
 
     public void start() throws IOException {
@@ -64,7 +64,7 @@ public class HttpServer {
         ioWorkers.forEach(Worker::shutdown);
     }
 
-    interface Handler {
+    private interface Handler {
 
         void handle(SelectionKey key) throws IOException;
 
@@ -77,7 +77,7 @@ public class HttpServer {
         }
     }
 
-    class AcceptHandler implements Handler {
+    private class AcceptHandler implements Handler {
 
         @Override
         public void handle(final SelectionKey key) throws IOException {
@@ -90,7 +90,7 @@ public class HttpServer {
         }
     }
 
-    class IOHandler implements Handler {
+    private class IOHandler implements Handler {
 
         private HttpRequestParser parser = new HttpRequestParser();
         private final ByteBuffer buf = ByteBuffer.allocate(8192);
@@ -157,7 +157,7 @@ public class HttpServer {
         }
     }
 
-    class Worker extends Thread {
+    private static class Worker extends Thread {
 
         private final Selector selector;
         private final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
@@ -208,7 +208,7 @@ public class HttpServer {
     }
 
     @FunctionalInterface
-    interface IOAction {
+    private interface IOAction {
         void act() throws IOException;
     }
 

@@ -12,7 +12,6 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelectableChannel;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,6 +23,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class HttpServer {
 
@@ -35,17 +36,14 @@ public class HttpServer {
     private final AtomicInteger counter = new AtomicInteger(0);
     private final List<Worker> ioWorkers;
 
-    public HttpServer(final String host, final int port, final HttpHandler handler)
-            throws IOException {
+    public HttpServer(final String host, final int port, final HttpHandler handler) {
         this.host = host;
         this.port = port;
         this.handler = handler;
-        this.acceptWorker = new Worker(Selector.open());
+        this.acceptWorker = new Worker(Selector::open);
         final int size = Runtime.getRuntime().availableProcessors() - 1;
-        final List<Worker> ioWorkers = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            ioWorkers.add(new Worker(Selector.open()));
-        }
+        final List<Worker> ioWorkers = IntStream.range(0, size)
+                .mapToObj(i -> new Worker(Selector::open)).collect(Collectors.toList());
         this.ioWorkers = ioWorkers;
     }
 
@@ -69,6 +67,14 @@ public class HttpServer {
     interface Handler {
 
         void handle(SelectionKey key) throws IOException;
+
+        default void handleWithUncheckedIOException(final SelectionKey key) {
+            try {
+                handle(key);
+            } catch (final IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
     }
 
     class AcceptHandler implements Handler {
@@ -157,8 +163,8 @@ public class HttpServer {
         private final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
         private final AtomicBoolean running = new AtomicBoolean(true);
 
-        public Worker(final Selector selector) {
-            this.selector = selector;
+        public Worker(final IOSupplier<Selector> selector) {
+            this.selector = selector.getWithUncheckedIOException();
         }
 
         @Override
@@ -167,12 +173,8 @@ public class HttpServer {
             try {
                 while (running.get()) {
                     selector.select(key -> {
-                        final Handler h = (Handler) key.attachment();
-                        try {
-                            h.handle(key);
-                        } catch (final IOException e) {
-                            throw new UncheckedIOException(e);
-                        }
+                        final var h = (Handler) key.attachment();
+                        h.handleWithUncheckedIOException(key);
                     });
                     IOAction task;
                     while ((task = queue.poll()) != null) {
@@ -208,5 +210,19 @@ public class HttpServer {
     @FunctionalInterface
     interface IOAction {
         void act() throws IOException;
+    }
+
+    @FunctionalInterface
+    private interface IOSupplier<T> {
+
+        T get() throws IOException;
+
+        default T getWithUncheckedIOException() {
+            try {
+                return get();
+            } catch (final IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
     }
 }

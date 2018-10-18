@@ -11,11 +11,11 @@ public class HttpResponseFormatter {
 
     private ByteBuffer buf = ByteBuffer.allocate(32);
 
-    public ByteBuffer format(HttpResponse response) {
-        Map<String, List<String>> headers = new HashMap<>();
+    public ByteBuffer format(final HttpResponse response) {
+        final Map<String, List<String>> headers = new HashMap<>();
         headers.putAll(response.headers);
 
-        ByteBuffer entity = response.entity;
+        final ByteBuffer entity = response.entity;
 
         int statusCode = response.statusCode;
         if (statusCode < -1) {
@@ -48,9 +48,9 @@ public class HttpResponseFormatter {
         return buf;
     }
 
-    private void put(ByteBuffer b) {
+    private void put(final ByteBuffer b) {
         if ((buf.position() + b.limit() < buf.capacity()) == false) {
-            ByteBuffer next = ByteBuffer
+            final ByteBuffer next = ByteBuffer
                     .allocate(Math.max(buf.capacity() * 2, buf.position() + b.limit()));
             buf.flip();
             next.put(buf);
@@ -59,10 +59,10 @@ public class HttpResponseFormatter {
         buf.put(b);
     }
 
-    private void put(String s) {
-        byte[] bs = s.getBytes();
+    private void put(final String s) {
+        final byte[] bs = s.getBytes();
         if ((buf.position() + bs.length < buf.capacity()) == false) {
-            ByteBuffer next = ByteBuffer
+            final ByteBuffer next = ByteBuffer
                     .allocate(Math.max(buf.capacity() * 2, buf.position() + bs.length));
             buf.flip();
             next.put(buf);

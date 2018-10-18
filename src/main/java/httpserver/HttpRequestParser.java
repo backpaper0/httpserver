@@ -18,9 +18,9 @@ public class HttpRequestParser {
     private ByteBuffer entity;
     private PartialParser parser = new MethodParser();
 
-    public boolean parse(ByteBuffer in) {
+    public boolean parse(final ByteBuffer in) {
         while (in.hasRemaining()) {
-            boolean parsed = parser.parse(in);
+            final boolean parsed = parser.parse(in);
             if (parsed) {
                 return true;
             }
@@ -32,9 +32,9 @@ public class HttpRequestParser {
         return new HttpRequest(method, requestTarget, httpVersion, headers, contentLength, entity);
     }
 
-    private void put(byte b) {
+    private void put(final byte b) {
         if (out.hasRemaining() == false) {
-            ByteBuffer buf = ByteBuffer.allocate(out.capacity() * 2);
+            final ByteBuffer buf = ByteBuffer.allocate(out.capacity() * 2);
             out.flip();
             buf.put(out);
             out = buf;
@@ -44,7 +44,7 @@ public class HttpRequestParser {
 
     private ByteBuffer getAsByteBuffer() {
         out.flip();
-        ByteBuffer bs = ByteBuffer.allocate(out.limit());
+        final ByteBuffer bs = ByteBuffer.allocate(out.limit());
         bs.put(out);
         bs.flip();
         out.clear();
@@ -53,7 +53,7 @@ public class HttpRequestParser {
 
     private String getAsString() {
         out.flip();
-        byte[] bs = new byte[out.limit()];
+        final byte[] bs = new byte[out.limit()];
         out.get(bs, 0, bs.length);
         out.clear();
         return new String(bs);
@@ -66,9 +66,9 @@ public class HttpRequestParser {
     class MethodParser implements PartialParser {
 
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 if (b == ' ') {
                     parser = new RequestTargetParser();
                     method = getAsString();
@@ -82,9 +82,9 @@ public class HttpRequestParser {
 
     class RequestTargetParser implements PartialParser {
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 if (b == ' ') {
                     parser = new HttpVersionParser();
                     requestTarget = getAsString();
@@ -98,9 +98,9 @@ public class HttpRequestParser {
 
     class HttpVersionParser implements PartialParser {
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 if (b == '\r') {
                 } else if (b == '\n') {
                     parser = new HeaderCheckParser();
@@ -116,12 +116,12 @@ public class HttpRequestParser {
 
     class HeaderCheckParser implements PartialParser {
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 if (b == '\r') {
                 } else if (b == '\n') {
-                    List<String> value = headers.get("Content-Length");
+                    final List<String> value = headers.get("Content-Length");
                     if (value != null) {
                         parser = new EntityParser();
                         contentLength = Integer.parseInt(value.get(0));
@@ -143,9 +143,9 @@ public class HttpRequestParser {
 
     class HeaderNameParser implements PartialParser {
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 if (b == ':') {
                     parser = new HeaderIntervalParser();
                     headerName = getAsString();
@@ -159,9 +159,9 @@ public class HttpRequestParser {
 
     class HeaderIntervalParser implements PartialParser {
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 if (b != ' ') {
                     parser = new HeaderValueParser();
                     in.position(in.position() - 1);
@@ -174,9 +174,9 @@ public class HttpRequestParser {
 
     class HeaderValueParser implements PartialParser {
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 if (b == '\r') {
                 } else if (b == '\n') {
                     parser = new HeaderCheckParser();
@@ -193,9 +193,9 @@ public class HttpRequestParser {
 
     class EntityParser implements PartialParser {
         @Override
-        public boolean parse(ByteBuffer in) {
+        public boolean parse(final ByteBuffer in) {
             while (in.hasRemaining()) {
-                byte b = in.get();
+                final byte b = in.get();
                 put(b);
                 if ((out.position() < contentLength) == false) {
                     entity = getAsByteBuffer();

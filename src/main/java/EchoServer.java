@@ -10,17 +10,17 @@ import httpserver.HttpServer;
 
 public class EchoServer {
 
-    public static void main(String[] args) throws Exception {
-        HttpServer server = new HttpServer("0.0.0.0", 8080, EchoServer::handle);
+    public static void main(final String[] args) throws Exception {
+        final HttpServer server = new HttpServer("0.0.0.0", 8080, EchoServer::handle);
         server.start();
         System.in.read();
         server.stop();
     }
 
-    static HttpResponse handle(HttpRequest request) throws Exception {
-        int statusCode = 200;
-        String reasonPhrase = "OK";
-        Map<String, List<String>> headers = new HashMap<>();
+    static HttpResponse handle(final HttpRequest request) throws Exception {
+        final int statusCode = 200;
+        final String reasonPhrase = "OK";
+        final Map<String, List<String>> headers = new HashMap<>();
         headers.computeIfAbsent("Content-Type", key -> new ArrayList<>())
                 .add("text/plain; charset=UTF-8");
         String s;
@@ -29,7 +29,7 @@ public class EchoServer {
         } else {
             s = new String(request.entity.array());
         }
-        ByteBuffer entity = ByteBuffer.wrap(s.split("=")[1].getBytes());
+        final ByteBuffer entity = ByteBuffer.wrap(s.split("=")[1].getBytes());
         return new HttpResponse(statusCode, reasonPhrase, headers, entity);
     }
 }

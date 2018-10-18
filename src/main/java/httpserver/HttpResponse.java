@@ -11,8 +11,9 @@ public class HttpResponse {
     public final Map<String, List<String>> headers;
     public final ByteBuffer entity;
 
-    public HttpResponse(int statusCode, String reasonPhrase, Map<String, List<String>> headers,
-            ByteBuffer entity) {
+    public HttpResponse(final int statusCode, final String reasonPhrase,
+            final Map<String, List<String>> headers,
+            final ByteBuffer entity) {
         this.statusCode = statusCode;
         this.reasonPhrase = reasonPhrase;
         this.headers = headers;

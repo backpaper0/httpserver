@@ -35,13 +35,14 @@ public class HttpServer {
     private final AtomicInteger counter = new AtomicInteger(0);
     private final List<Worker> ioWorkers;
 
-    public HttpServer(String host, int port, HttpHandler handler) throws IOException {
+    public HttpServer(final String host, final int port, final HttpHandler handler)
+            throws IOException {
         this.host = host;
         this.port = port;
         this.handler = handler;
         this.acceptWorker = new Worker(Selector.open());
-        int size = Runtime.getRuntime().availableProcessors() - 1;
-        List<Worker> ioWorkers = new ArrayList<>(size);
+        final int size = Runtime.getRuntime().availableProcessors() - 1;
+        final List<Worker> ioWorkers = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             ioWorkers.add(new Worker(Selector.open()));
         }
@@ -52,7 +53,7 @@ public class HttpServer {
         logger.info(() -> "start");
         acceptWorker.start();
         ioWorkers.forEach(Thread::start);
-        ServerSocketChannel ssc = ServerSocketChannel.open();
+        final ServerSocketChannel ssc = ServerSocketChannel.open();
         ssc.configureBlocking(false);
         ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
         ssc.bind(new InetSocketAddress(host, port));
@@ -73,12 +74,12 @@ public class HttpServer {
     class AcceptHandler implements Handler {
 
         @Override
-        public void handle(SelectionKey key) throws IOException {
-            ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
-            SocketChannel sc = ssc.accept();
+        public void handle(final SelectionKey key) throws IOException {
+            final ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
+            final SocketChannel sc = ssc.accept();
             sc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
             sc.configureBlocking(false);
-            int index = counter.getAndIncrement() % ioWorkers.size();
+            final int index = counter.getAndIncrement() % ioWorkers.size();
             ioWorkers.get(index).register(sc, SelectionKey.OP_READ, new IOHandler());
         }
     }
@@ -91,18 +92,18 @@ public class HttpServer {
         private HttpRequest request;
 
         @Override
-        public void handle(SelectionKey key) throws IOException {
-            SocketChannel sc = (SocketChannel) key.channel();
+        public void handle(final SelectionKey key) throws IOException {
+            final SocketChannel sc = (SocketChannel) key.channel();
             if (key.isReadable()) {
                 int i;
                 while ((i = sc.read(buf)) > 0) {
                     buf.flip();
-                    boolean parsed = parser.parse(buf);
+                    final boolean parsed = parser.parse(buf);
                     if (parsed) {
                         request = parser.build();
                         parser = new HttpRequestParser();
-                        HttpResponse response = handle(request);
-                        HttpResponseFormatter formatter = new HttpResponseFormatter();
+                        final HttpResponse response = handle(request);
+                        final HttpResponseFormatter formatter = new HttpResponseFormatter();
                         responseEntity = formatter.format(response);
                         if ((key.interestOps() & SelectionKey.OP_WRITE) != SelectionKey.OP_WRITE) {
                             key.interestOps(key.interestOps() | SelectionKey.OP_WRITE);
@@ -119,7 +120,7 @@ public class HttpServer {
                 if (responseEntity.hasRemaining() == false) {
                     key.interestOps(key.interestOps() ^ SelectionKey.OP_WRITE);
 
-                    List<String> connection = request.headers.getOrDefault("Connection",
+                    final List<String> connection = request.headers.getOrDefault("Connection",
                             Collections.emptyList());
                     if (connection.contains("keep-alive") == false) {
                         key.cancel();
@@ -129,23 +130,23 @@ public class HttpServer {
             }
         }
 
-        private HttpResponse handle(HttpRequest request) {
+        private HttpResponse handle(final HttpRequest request) {
             try {
                 return handler.handle(request);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 logger.log(Level.SEVERE, "exception in handle request", e);
                 return createErrorResponse(e);
             }
         }
 
-        private HttpResponse createErrorResponse(Exception e) {
-            Map<String, List<String>> headers = new HashMap<>();
+        private HttpResponse createErrorResponse(final Exception e) {
+            final Map<String, List<String>> headers = new HashMap<>();
             headers.put("Content-Type", Arrays.asList("text/plain"));
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try (PrintStream out = new PrintStream(baos)) {
                 e.printStackTrace(out);
             }
-            ByteBuffer entity = ByteBuffer.wrap(baos.toByteArray());
+            final ByteBuffer entity = ByteBuffer.wrap(baos.toByteArray());
             return new HttpResponse(500, "Internal Server Error", headers, entity);
         }
     }
@@ -156,7 +157,7 @@ public class HttpServer {
         private final BlockingQueue<IOAction> queue = new LinkedBlockingQueue<>();
         private final AtomicBoolean running = new AtomicBoolean(true);
 
-        public Worker(Selector selector) {
+        public Worker(final Selector selector) {
             this.selector = selector;
         }
 
@@ -165,13 +166,13 @@ public class HttpServer {
             logger.info(() -> getName() + " begin");
             try {
                 while (running.get()) {
-                    int count = selector.select();
+                    final int count = selector.select();
                     if (count > 0) {
-                        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
+                        final Iterator<SelectionKey> it = selector.selectedKeys().iterator();
                         while (it.hasNext()) {
-                            SelectionKey key = it.next();
+                            final SelectionKey key = it.next();
                             it.remove();
-                            Handler h = (Handler) key.attachment();
+                            final Handler h = (Handler) key.attachment();
                             h.handle(key);
                         }
                     }
@@ -181,18 +182,19 @@ public class HttpServer {
                     }
                 }
                 logger.info(() -> getName() + " end");
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 logger.log(Level.SEVERE, "exception in run", e);
             } finally {
                 try {
                     selector.close();
-                } catch (IOException e) {
+                } catch (final IOException e) {
                     logger.log(Level.SEVERE, "exception in close selector", e);
                 }
             }
         }
 
-        public void register(AbstractSelectableChannel channel, int op, Handler handler) {
+        public void register(final AbstractSelectableChannel channel, final int op,
+                final Handler handler) {
             queue.add(() -> channel.register(selector, op, handler));
             selector.wakeup();
         }

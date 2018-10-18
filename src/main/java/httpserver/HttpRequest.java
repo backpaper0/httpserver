@@ -13,8 +13,9 @@ public class HttpRequest {
     public final int contentLength;
     public final ByteBuffer entity;
 
-    public HttpRequest(String method, String requestTarget, String httpVersion,
-            Map<String, List<String>> headers, int contentLength, ByteBuffer entity) {
+    public HttpRequest(final String method, final String requestTarget, final String httpVersion,
+            final Map<String, List<String>> headers, final int contentLength,
+            final ByteBuffer entity) {
         this.method = method;
         this.requestTarget = requestTarget;
         this.httpVersion = httpVersion;

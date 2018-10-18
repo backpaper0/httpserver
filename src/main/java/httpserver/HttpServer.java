@@ -3,6 +3,7 @@ package httpserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
@@ -15,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -166,16 +166,14 @@ public class HttpServer {
             logger.info(() -> getName() + " begin");
             try {
                 while (running.get()) {
-                    final int count = selector.select();
-                    if (count > 0) {
-                        final Iterator<SelectionKey> it = selector.selectedKeys().iterator();
-                        while (it.hasNext()) {
-                            final SelectionKey key = it.next();
-                            it.remove();
-                            final Handler h = (Handler) key.attachment();
+                    selector.select(key -> {
+                        final Handler h = (Handler) key.attachment();
+                        try {
                             h.handle(key);
+                        } catch (final IOException e) {
+                            throw new UncheckedIOException(e);
                         }
-                    }
+                    });
                     IOAction task;
                     while ((task = queue.poll()) != null) {
                         task.act();

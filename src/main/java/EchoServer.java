@@ -29,7 +29,7 @@ public class EchoServer {
         } else {
             s = new String(request.entity.array());
         }
-        final ByteBuffer entity = ByteBuffer.wrap(s.split("=")[1].getBytes());
+        final ByteBuffer entity = ByteBuffer.wrap(s.getBytes());
         return new HttpResponse(statusCode, reasonPhrase, headers, entity);
     }
 }
